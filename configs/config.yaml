@@ -1,0 +1,31 @@
+defaults:
+  - chiplet: chiplet  #在chiplet目录寻找chipley.yaml
+  - applications: solo
+  - model_repo: default
+  - orchestrator_repo: default
+  - trace: test_trace
+  - start_state: llmengine
+  - scheduler: mixedpool
+  - override hydra/launcher: ray
+  - _self_
+
+end_time: 86400  # 24h
+debug: True
+seed: 0
+
+choices: ${hydra:runtime.choices}
+output_dir: results/${now:%Y-%m-%d_%H-%M-%S}/${seed}/${start_state.state_type}/${trace.filename}
+
+hydra:
+  # changes the cwd to the output directory
+  #run:
+  #  dir: ${output_dir}
+  sweep:
+    dir: ""
+    subdir: ${output_dir}
+  #job:
+  #  chdir: True
+  launcher:
+    ray:
+      init:
+        address: "10.0.0.9:6379"

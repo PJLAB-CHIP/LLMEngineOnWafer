@@ -1,0 +1,7 @@
+
+__target__: components.tile.Tile  
+  SRAM: 1.25  # MB
+  bandwidth: 9000  # GB
+  tflops: 1.02  # TFLOPS
+  tops: 0.0625  # TOPS
+  hop_latency: 0.01  # us

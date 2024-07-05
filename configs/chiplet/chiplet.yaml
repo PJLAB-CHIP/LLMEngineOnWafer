@@ -1,0 +1,29 @@
+
+__target__: components.chiplet.Chiplet
+num_x: 5
+num_y: 4
+die_num: 20
+dies:
+  - __target__: components.die.Die
+    num_x: 5
+    num_y: 4
+    tile_num: 144
+    InterDie_BW: 4500
+    dram:
+      __target__: components.dram.Dram
+      bandwidth: 900  # GB
+      latency: 0.1  # us
+      memory_size: 900
+      memory_used: 0
+    tiles:
+      - __target__: components.tile.Tile
+        num_x: 12
+        num_y: 12
+        sram: 1.25  # MB
+        bandwidth: 9000  # GB
+        tflops: 1.02  # TFLOPS
+        tops: 0.0625  # TOPS
+        hop_latency: 0.01  # us
+
+
+  

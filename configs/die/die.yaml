@@ -1,0 +1,5 @@
+dies:
+ __target__: components.die.Die
+ count: 1
+ tile_num: 144
+ InterDie_BW: 4500

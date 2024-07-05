@@ -1,0 +1,7 @@
+- application_id: 0
+  model_name: llama2-70b
+  allocator: noop
+  scheduler: mixed_pool
+  overheads: {}
+  debug: ${debug}
+  _target_: application.Application
