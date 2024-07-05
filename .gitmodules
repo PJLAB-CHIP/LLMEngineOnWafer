@@ -1,0 +1,3 @@
+[submodule "StaticMapper"]
+	path = StaticMapper
+	url = ssh://git@ssh.github.com:443/Conquer2020/Inference_Framework.git
