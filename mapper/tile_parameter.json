@@ -1,0 +1,10 @@
+{
+    "TILE_NUM": 144,
+    "SRAM(MB)": 1.25,
+    "NOC_BW(GB/s)": 9000,
+    "DRAM_BW(GB/s)": 900,
+    "DRAM_LATENCY(us)": 0.1,
+    "GEMM(TFLOPS)": 1.02,
+    "VECTOR(TOPS)": 0.625,
+    "HOP_LATENCY(us)": 0.01
+}
