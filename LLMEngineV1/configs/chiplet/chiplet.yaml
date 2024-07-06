@@ -8,7 +8,7 @@ dies:
     num_x: 5
     num_y: 4
     tile_num: 144
-    InterDie_BW: 4500
+    d2d_bw: 4500
     dram:
       __target__: dram.Dram
       bandwidth: 900  # GB

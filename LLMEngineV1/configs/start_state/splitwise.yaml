@@ -9,8 +9,8 @@ prompt:
   max_batch_tokens: 2048
   max_preemptions: 4
   pipeline_parallelism: 1
-  tensor_parallelism: 18
-  num_instances: 80
+  tensor_parallelism: 72
+  num_instances: 20
   instance_names: ["dgx-a100"]
 token:
   instance_type: Splitwise
@@ -18,6 +18,6 @@ token:
   max_batch_tokens: 2048
   max_preemptions: 4
   pipeline_parallelism: 1
-  tensor_parallelism: 16
-  num_instances: 90
+  tensor_parallelism: 72
+  num_instances: 20
   instance_names: ["dgx-a100"]

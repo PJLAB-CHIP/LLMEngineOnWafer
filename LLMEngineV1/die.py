@@ -28,7 +28,7 @@ class Die:
 
     def __init__(self,
                  die_id,
-                 #name,
+                 d2d_bw,
                  dram,
                  num_x,
                  num_y,
@@ -38,6 +38,7 @@ class Die:
         if die_id in Die.dies:
             Die.dies = {}
             Die.logger = None
+        self.d2d_bw = d2d_bw
         self.die_id = die_id
         self.store_weight = False  # for the first 
         self.name = 'Die'
@@ -108,6 +109,7 @@ class Die:
         dram_cfg = die_cfg.dram
         num_x = die_cfg.num_x
         num_y = die_cfg.num_y
+        d2d_bw = die_cfg.d2d_bw
         #interconnects_cfg = die_cfg.interconnects
         tile_id = count()
         dram = Dram.from_config(dram_cfg, dram_id=die_id)
@@ -125,6 +127,7 @@ class Die:
         #     interconnects.append(intercon)
 
         return cls(die_id=die_id,
+                   d2d_bw=d2d_bw,
                    #name=die_cfg.name,
                    dram=dram,
                    num_x=num_x,

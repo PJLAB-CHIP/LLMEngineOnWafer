@@ -12,7 +12,7 @@ from node import NodeState
 from performance_model import get_duration, get_iteration_duration
 from simulator import clock, schedule_event, cancel_event, reschedule_event
 from task import PromptTask, TokenTask
-
+from mapper.static_mapper import *  # import our performance model
 
 class Instance():
     """
@@ -505,13 +505,16 @@ class ORCAInstance(Instance):
                 self.application.scheduler.notify_free_instance(self)
             return
         #ipdb.set_trace()
+        # our performance mode
+        self.iteration_duration = get_static_mapper_duration(batch=self.batch,
+                                                             instance=self)
         # 根据performance model预估时间, mixed batch情况是进行prefill的token的时间*1.1
-        # 先用constant performance model进行测试
-        self.iteration_duration = get_duration(task=self.batch[0],
-                                               batch=self.batch,
-                                               instance=self)
         # self.iteration_duration = get_iteration_duration(batch=self.batch,  
         #                                                  instance=self)
+        # 先用constant performance model进行测试
+        # self.iteration_duration = get_duration(task=self.batch[0],
+        #                                        batch=self.batch,
+        #                                        instance=self)
 
         # prefill OR mixed batch = 1, pure decode batch就根据当前batch中的task最少还要生成的token数目连续执行预估
         self.num_contiguous_iterations = self.get_num_contiguous_iterations()  

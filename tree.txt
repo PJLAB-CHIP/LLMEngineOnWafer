@@ -1,0 +1,90 @@
+./LLMEngineV1
+|-- __pycache__
+|-- configs
+|   |-- applications
+|   |-- arbiter
+|   |-- chiplet
+|   |-- cluster
+|   |-- experiment
+|   |-- hardware_repo
+|   |   |-- interconnects
+|   |   |-- processors
+|   |   `-- skus
+|   |-- model_repo
+|   |   |-- architectures
+|   |   `-- sizes
+|   |-- orchestrator_repo
+|   |   |-- allocators
+|   |   `-- schedulers
+|   |-- performance_model
+|   |-- power_model
+|   |-- router
+|   |   `-- overheads
+|   |-- start_state
+|   `-- trace
+|-- data
+|-- notebooks
+|-- results
+|   `-- 0
+|       |-- orca
+|       |   `-- test_trace
+|       |       `-- 40_0
+|       |           `-- bloom-176b
+|       |               `-- round_robin
+|       |-- splitwise_1_1
+|       |   |-- rr_conv_80
+|       |   |   `-- 26_25
+|       |   |       `-- bloom-176b
+|       |   |           `-- mixed_pool
+|       |   |               `-- schedulers
+|       |   `-- test_trace
+|       |       `-- 40_0
+|       |           `-- bloom-176b
+|       |               `-- round_robin
+|       |                   `-- schedulers
+|       |-- splitwise_27_13
+|       |   |-- AzureLLMInferenceTrace_code
+|       |   |   `-- 40_0
+|       |   |       `-- bloom-176b
+|       |   |           `-- mixed_pool
+|       |   |               `-- schedulers
+|       |   |-- AzureLLMInferenceTrace_conv
+|       |   |   `-- 40_0
+|       |   |       `-- bloom-176b
+|       |   |           `-- mixed_pool
+|       |   |               |-- detailed
+|       |   |               |-- instances
+|       |   |               |   `-- 0
+|       |   |               `-- schedulers
+|       |   `-- rr_conv_80
+|       |       `-- 40_0
+|       |           `-- bloom-176b
+|       |               `-- mixed_pool
+|       |                   `-- schedulers
+|       `-- splitwise_80_90
+|           |-- AzureLLMInferenceTrace_conv
+|           |   `-- 40_0
+|           |       `-- llama2-70b
+|           |           `-- mixed_pool
+|           |               |-- detailed
+|           |               |-- instances
+|           |               |   `-- 0
+|           |               `-- schedulers
+|           `-- test_trace
+|               `-- 40_0
+|                   |-- bloom-176b
+|                   |   `-- round_robin
+|                   |       |-- instances
+|                   |       |   `-- 0
+|                   |       `-- schedulers
+|                   `-- llama2-70b
+|                       `-- mixed_pool
+|                           |-- detailed
+|                           |-- instances
+|                           |   `-- 0
+|                           `-- schedulers
+|-- scripts
+|-- sync_scripts
+`-- traces
+
+87 directories

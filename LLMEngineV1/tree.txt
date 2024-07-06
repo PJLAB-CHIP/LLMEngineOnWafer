@@ -1,0 +1,32 @@
+./
+|-- __pycache__
+|-- configs
+|   |-- applications
+|   |-- arbiter
+|   |-- chiplet
+|   |-- cluster
+|   |-- experiment
+|   |-- hardware_repo
+|   |   |-- interconnects
+|   |   |-- processors
+|   |   `-- skus
+|   |-- model_repo
+|   |   |-- architectures
+|   |   `-- sizes
+|   |-- orchestrator_repo
+|   |   |-- allocators
+|   |   `-- schedulers
+|   |-- performance_model
+|   |-- power_model
+|   |-- router
+|   |   `-- overheads
+|   |-- start_state
+|   `-- trace
+|-- data
+|-- notebooks
+|-- results
+|-- scripts
+|-- sync_scripts
+`-- traces
+
+29 directories
