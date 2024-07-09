@@ -1,5 +1,0 @@
-__target__: components.dram.Dram
-bandwidth: 900  # GB
-latency: 0.1  # us
-memory_size: 900
-_memory_used: 0

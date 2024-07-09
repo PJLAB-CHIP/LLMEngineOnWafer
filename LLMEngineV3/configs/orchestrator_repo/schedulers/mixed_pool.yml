@@ -6,6 +6,6 @@ executor_overheads:
   finish_request: 0
 prompt_processors: ["h100-80gb"]
 token_processors: ["a100-80gb"]
-prompt_max_pending_batch_tokens: 8192
+prompt_max_pending_batch_tokens: 2048
 token_max_pending_batch_tokens: 2048
 transfer_bandwidth: 200

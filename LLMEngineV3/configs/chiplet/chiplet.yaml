@@ -1,12 +1,12 @@
 
 __target__: chiplet.Chiplet
-num_x: 5
-num_y: 4
-die_num: 20
+num_x: 6
+num_y: 6
+die_num: 36
 dies:
   - __target__: die.Die
-    num_x: 5
-    num_y: 4
+    num_x: 6
+    num_y: 6
     tile_num: 144
     d2d_bw: 4500
     dram:

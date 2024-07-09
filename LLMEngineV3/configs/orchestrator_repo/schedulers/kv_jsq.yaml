@@ -6,4 +6,4 @@ executor_overheads:
   finish_request: 0
 prompt_processors: ["h100-80gb"]
 token_processors: ["a100-80gb"]
-transfer_bandwidth: 200
+transfer_bandwidth: 2000

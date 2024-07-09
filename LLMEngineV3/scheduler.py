@@ -7,9 +7,9 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-import bisect
+import random
 import utils
-
+import time
 from executor import Executor, ExecutorType
 from interconnect import DummyLink
 from performance_model import get_duration
@@ -475,16 +475,6 @@ class KVJSQScheduler(KVScheduler):
         max_batch_size = instance.max_batch_size
         max_batch_tokens = instance.max_batch_tokens
 
-        # # add to pool
-        # if pred_task.request not in pending_requests:
-        #     # inserts an item into a list in sorted order
-        #     bisect.insort(pending_requests, pred_task.request,
-        #                   key=lambda x: x.arrival_timestamp)
-        #     request_tasks[pred_task.request] = [pred_task]  # map: {request: task}
-        # else:
-        #     request_tasks[pred_task.request].append(pred_task)
-            
-        # add to
         new_batch = []
         new_tasks = []
         preempted_tasks = []
@@ -565,20 +555,19 @@ class KVJSQScheduler(KVScheduler):
         # 调用底层的静态分析器获取预估执行时间最短的 Prompt Instance
         prompt_instance = None
         min_prefill_time = sys.maxsize
-        for instance in self.prompt_instances:  # 遍历每个 Prompt Instance
-            # instance.add_to_pool(prompt_task)  # 假装执行，估计每个队列的执行时间
-            # instance.add_pending_task(prompt_task) 
+        for instance in random.sample(self.prompt_instances, len(self.prompt_instances)):  # 遍历每个 Prompt Instance
+            if instance.pending_tokens == 0:
+                prompt_instance = instance
+                break
             # 首先要把task的instance指定为该instance否则执行不了select_batch()
             prompt_task.instance = instance  # 后面不用取消，因为add_kv_cache_transfer会重新指定
             _, new_tasks = self.pre_select_batch(instance, prompt_task) #super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
             if prompt_task in new_tasks:
                 exec_time = get_static_mapper_duration(new_tasks, instance)
+                end_time = time.time()
                 if exec_time < min_prefill_time:
                     prompt_instance = instance
                     min_prefill_time = exec_time
-            # 算出预估执行事件后再取出
-            # instance.remove_from_pool(prompt_task)
-            # instance.remove_pending_task(prompt_task)
             prompt_task.instance = None
         # 如果下个组的batch里面没有该task，那说明该Instance已经超过了max_batch_tokens, 那执行时间肯定不是最短           
         if prompt_instance == None:  # HACK: 在所有的 Prompt Instance里找不到能在下个batch执行的
@@ -588,21 +577,19 @@ class KVJSQScheduler(KVScheduler):
         # decode 同理
         token_instance = None       
         min_decode_time = sys.maxsize
-        for instance in self.token_instances:
-            # instance.add_to_pool(token_task)  # 假装执行，估计每个队列的执行时间
-            # instance.add_pending_task(token_task) 
+        for instance in random.sample(self.token_instances, len(self.token_instances)):
+            if instance.pending_tokens == 0:
+                token_instance = instance
+                break
             # 首先要把task的instance指定为该instance否则执行不了select_batch()
             token_task.instance = instance  # 后面不用取消，因为add_kv_cache_transfer会重新指定
-            # _, new_tasks = self.pre_select_batch(instance, token_task)#super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
+            _, new_tasks = self.pre_select_batch(instance, token_task)#super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
             # #ipdb.set_trace()
             if token_task in new_tasks:
                 exec_time = get_static_mapper_duration(new_tasks, instance)
                 if exec_time < min_decode_time:
                     token_instance = instance
                     min_decode_time = exec_time
-            # 算出预估执行事件后再取出
-            # instance.remove_from_pool(token_task)
-            # instance.remove_pending_task(token_task)
             token_task.instance = None
         # 如果下个组的batch里面没有该task，那说明该Instance已经超过了max_batch_tokens, 那执行时间肯定不是最短
         if token_instance == None:  # HACK: 在所有的 Token Instance 里找不到能在下个batch执行的
@@ -879,95 +866,4 @@ class MixedPoolScheduler(KVScheduler):
         token_instance.sched_pending_tokens += 1
 
 
-class OurScheduler(KVScheduler):
-    """
-    OurScheduler schedules Requests to the Instance with smallest executing time.
-    Ships KV-caches to the mapped DRAM.
-    Currently uses an inefficient O(n) search.
-    """
-    def __init__(self,
-                 application,
-                 router,
-                 overheads,
-                 executor_overheads,
-                 prompt_processors,
-                 token_processors,
-                 prompt_max_pending_batch_tokens,
-                 token_max_pending_batch_tokens,
-                 transfer_bandwidth,
-                 debug=False):
-        super().__init__(application,
-                         router,
-                         overheads,
-                         executor_overheads,
-                         prompt_processors,
-                         token_processors,
-                         debug)
-        self.prompt_max_pending_batch_tokens = prompt_max_pending_batch_tokens
-        self.token_max_pending_batch_tokens = token_max_pending_batch_tokens
-        self.transfer_bandwidth = transfer_bandwidth * 1024**3 # convert to B/s
-        self.prompt_instances = []
-        #self.mixed_instances = []  # We don't support mixed batching
-        self.token_instances = []
-    
-    def schedule(self, request, *args, **kwargs):
-        if (len(self.prompt_instances) == 0 or len(self.token_instances) == 0):
-            raise ValueError("No instances available")
-        prompt_task = request.root_node
-        token_task = next(request.successors(prompt_task))
-        # 调用底层的静态分析器获取预估执行时间最短的 Prompt Instance
-        prompt_instance = None
-        min_prefill_time = sys.maxsize
-        for instance in self.prompt_instances:  # 遍历每个 Prompt Instance
-            instance.add_to_pool(prompt_task)  # 假装执行，估计每个队列的执行时间
-            instance.add_pending_task(prompt_task)
-            # 首先要把task的instance指定为该instance否则执行不了select_batch()
-            prompt_task.instance = instance  # 后面不用取消，因为add_kv_cache_transfer会重新指定
-            _, new_tasks = instance.select_batch()
-            if prompt_task in new_tasks:
-                exec_time = get_static_mapper_duration(new_tasks)
-                # 算出预估执行事件后再取出
-                instance.remove_from_pool(prompt_task)
-                instance.remove_pending_task(prompt_task)
-                if exec_time < min_prefill_time:
-                    prompt_instance = instance
-                    min_prefill_time = exec_time
-             # 如果下个组的batch里面没有该task，那说明该Instance已经超过了max_batch_tokens, 那执行时间肯定不是最短           
-        if prompt_instance == None:  # HACK: 在所有的 Prompt Instance里找不到能在下个batch执行的
-             prompt_instance = min(self.prompt_instances,  # 选择待执行token数最短的
-                              key=lambda instance: instance.sched_pending_tokens)    
-                          
-        # decode 同理
-        token_instance = None       
-        min_decode_time = sys.maxsize
-        for instance in self.token_instances:
-            instance.add_to_pool(token_task)  # 假装执行，估计每个队列的执行时间
-            instance.add_pending_task(token_task)
-            # 首先要把task的instance指定为该instance否则执行不了select_batch()
-            token_task.instance = instance  # 后面不用取消，因为add_kv_cache_transfer会重新指定
-            _, new_tasks = instance.select_batch()
-            if token_task in new_tasks:
-                exec_time = get_static_mapper_duration(new_tasks)
-                # 算出预估执行事件后再取出
-                instance.remove_from_pool(token_task)
-                instance.remove_pending_task(token_task)
-                if exec_time < min_decode_time:
-                    token_instance = instance
-                    min_decode_time = exec_time
-             # 如果下个组的batch里面没有该task，那说明该Instance已经超过了max_batch_tokens, 那执行时间肯定不是最短
-        if token_instance == None:  # HACK: 在所有的 Token Instance 里找不到能在下个batch执行的
-            token_instance =  min(self.token_instances,  # 选择待执行token数最短的
-                            key=lambda instance: instance.sched_pending_tokens)
-        # task的instance在add_kv_cache_transfer里面赋值的
-        assert prompt_instance != token_instance
-        self.add_kv_cache_transfer(request,
-                                       prompt_instance,
-                                       token_instance,
-                                       self.transfer_bandwidth)
-        prompt_instance.sched_memory += prompt_task.max_memory(prompt_instance)
-        token_instance.sched_memory += prompt_task.max_memory(token_instance) + \
-                                        token_task.max_memory(token_instance)
-                                        
-        prompt_instance.sched_pending_tokens += prompt_task.prompt_size
-        token_instance.sched_pending_tokens += 1
                 

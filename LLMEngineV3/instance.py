@@ -631,7 +631,7 @@ class ORCAInstance(Instance):
 
         # start next iteration
         self.pause_next_iteration = False
-        #print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
+        print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
         self.start_iteration()
 
     def task_completion(self, task):

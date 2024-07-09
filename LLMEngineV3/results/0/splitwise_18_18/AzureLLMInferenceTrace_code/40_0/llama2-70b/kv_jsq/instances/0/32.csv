@@ -1,0 +1,5 @@
+name,tag,iteration_start,iteration_end,batch_size,prompt_tasks_in_batch,memory,pending_requests,pending_tasks,blocked_tasks,pending_prompts,earliest_request_id,memory_allocs_size,num_contiguous_iterations,batch_tokens,pending_tokens
+None_32,token,6.8207255425118225,8.979018655150664,1,0,143868331520.0,2,1,0,0,7725,3,7.0,0,1
+None_32,token,8.979018655150664,12.385043043181744,1,0,142623147520.0,2,1,0,0,7740,3,11.0,0,1
+None_32,token,12.385043043181744,12.699684467501703,2,0,142696547840.0,3,1,0,0,7740,4,1.0,0,1
+None_32,token,12.699684467501703,14.902944645252292,3,0,142806648320.0,3,0,0,0,7740,4,7.0,0,0

@@ -30,6 +30,7 @@ class Chiplet:
         for die in self.dies:
             die.chiplet = self
         # 记录每个die被哪些dram分配了多少id
+        print(len(self.dies))
         for i in range(len(self.dies)):
             for dram in self.drams:
                 if i in dram.memory_allocation.keys():
@@ -66,27 +67,11 @@ class Chiplet:
             die.run()
 
                 
-    def start_spin_up_instance(self,
-                               instance_cfg,
-                               processors,
-                               #parallelism,  # tp来划分每个gpu要存的权重 我们不用
-                               pre_start=False,
-                               tag=None):
-        instance = Instance.from_config(instance_cfg=instance_cfg,
-                                        instance_id=next(self.total_instances),
-                                        application=self.application,
-                                        #name=processors[0].name,
-                                        tag=tag,
-                                        #model=None #model,
-                                        processors=processors,
-                                        #overheads=self.instance_overheads,
-                                        debug=self.debug)
-        self.instances.append(instance)
     @classmethod
     def from_config(cls, *args, **kwargs):
         # args processing
         chiplet_cfg = args[0]
-        print(chiplet_cfg.keys())
+        print(chiplet_cfg.values())
         dies_cfg = chiplet_cfg.dies
         #interconnects_cfg = chiplet_cfg.interconnects
         num_x = chiplet_cfg.num_x

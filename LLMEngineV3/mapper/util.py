@@ -33,14 +33,10 @@ def find_powers_of_two(a, b):
 
 def find_powers_of_two_nearest(a):
     # 找到最接近a的的2次幂
-    lower_bound = 1
-    while lower_bound*2 < a:
-        lower_bound *= 2
-    upper_bound = lower_bound * 2
-    if a - lower_bound <= upper_bound - a:
-        return lower_bound
-    else:
-        return upper_bound if upper_bound <= 4096 else 4096  # HACK: 有些逆天数据
+    upper_bound = 1
+    while upper_bound < a:
+        upper_bound *= 2
+    return upper_bound if upper_bound <= 4096 else 4096  # HACK: 有些逆天数据
 
 
 def load_config(input_path):
