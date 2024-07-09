@@ -13,7 +13,6 @@ from performance_model import get_duration, get_iteration_duration
 from simulator import clock, schedule_event, cancel_event, reschedule_event
 from task import PromptTask, TokenTask
 from mapper.static_mapper import *  # import our performance model
-from scheduler import *
 
 
 class Instance():
@@ -508,11 +507,9 @@ class ORCAInstance(Instance):
         # 3. 其他被抢占的(没超过抢占次数限制)  blocked_queue
         # 4. 之前组进batch但没有进行inference的 self.batch
         # 5. pending_queue的其他
-        if isinstance(self.application.scheduler, KVJSQScheduler):  # 我们目前不执行抢占，只调用父类的方法
-            preempted_tasks, new_tasks = ORCAInstance.select_batch(self)  
-        else:
-            preempted_tasks, new_tasks = self.select_batch()
 
+        preempted_tasks, new_tasks = ORCAInstance.select_batch(self)  # 我们目前不执行抢占，只调用父类的方法
+        
         for task in preempted_tasks:  # 在old_batch但不在new_batch的
             self.preempt_task(task)  # 按到来时间重新插入到pending_queue
 
@@ -634,8 +631,7 @@ class ORCAInstance(Instance):
 
         # start next iteration
         self.pause_next_iteration = False
-        #ipdb.set_trace()
-        print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
+        #print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
         self.start_iteration()
 
     def task_completion(self, task):
