@@ -155,7 +155,7 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
 
     # NOTE: only use for profile, no need run manual_mapper()
     decode_baseline_path = os.path.join(
-        cur_dir, f"output\\{model_name}\\die-{die_num}-tile-{tile_num}\\prefill")
+        cur_dir, f"output/{model_name}/die-{die_num}-tile-{tile_num}/prefill")
 
     llm_config = load_config(decode_input_path)
     tx8_config = load_config(os.path.join(cur_dir, './tile_parameter.json'))
