@@ -17,15 +17,19 @@ pip install -r requirements.txt
 2. [X] 接入德浩的静态分析器(decode修改成了batch版本)，同时HACK实现了逆天数据的时间估计
 3. [X] schduler修改(已优化逻辑)
 4. [X] DRAM内存分配问题，已根据输出数据画出token instance的kv cache 峰值
+5. [X] 将`static_mapper()`换成了查表，避免每次都profile
+
+
+# WARNING !!!
+1. [] llama2-70b模型kv cache peak占用很大，可能考虑改架构
 
 # TODO
 
-1. [ ] `static_mapper()`运行时间很长，程序运行很慢
-2. [ ] 确定prefill和decode的tp粒度以及instance个数
-3. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**
-4. [ ] 功耗如何计算
-5. [ ] 资源交换算法设计***(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)***
-6. [ ] 是否要支持可变tp
+1. [ ] 确定prefill和decode的tp粒度以及instance个数
+2. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**
+3. [ ] 功耗如何计算
+4. [ ] 资源交换算法设计**(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)**
+5. [ ] 是否要支持可变tp
 
 # V3
 
