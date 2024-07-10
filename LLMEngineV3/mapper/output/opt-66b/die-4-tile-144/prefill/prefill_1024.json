@@ -1,0 +1,62 @@
+{
+    "RMSNorm": {
+        "latency": 0.026374228982031248,
+        "utilization": 0.017890919212139908,
+        "cp_latency": 0.0018874368
+    },
+    "QKV_fusion": {
+        "latency": 0.8902633654411766,
+        "utilization": 0.9976885351235584,
+        "cp_latency": 0.8882055529411765
+    },
+    "Flashatten": {
+        "latency": 0.07460454761176472,
+        "utilization": 0.99284272317046,
+        "cp_latency": 0.07407058221176471
+    },
+    "Linear": {
+        "latency": 0.29793101764705876,
+        "utilization": 0.9937485528874795,
+        "cp_latency": 0.29606851764705877
+    },
+    "RMSNorm2": {
+        "latency": 0.026374228982031248,
+        "utilization": 0.017890919212139908,
+        "cp_latency": 0.0018874368
+    },
+    "ResAdd": {
+        "latency": 0.009901228799999998,
+        "utilization": 0.0027303277750737364,
+        "cp_latency": 2.7033599999999998e-05
+    },
+    "FFNup&SiLU": {
+        "latency": 1.1865560009882352,
+        "utilization": 0.9984303311445487,
+        "cp_latency": 1.1846935009882351
+    },
+    "FFNgate": {
+        "latency": 1.1861365705882352,
+        "utilization": 0.9984297760930881,
+        "cp_latency": 1.184274070588235
+    },
+    "Hadamard": {
+        "latency": 0.024904915200000002,
+        "utilization": 0.004341889909346087,
+        "cp_latency": 0.00010813439999999999
+    },
+    "FFNdown": {
+        "latency": 1.1861365705882352,
+        "utilization": 0.9984297760930881,
+        "cp_latency": 1.184274070588235
+    },
+    "ResAdd2": {
+        "latency": 0.009901228799999998,
+        "utilization": 0.0027303277750737364,
+        "cp_latency": 2.7033599999999998e-05
+    },
+    "TotalLayer": {
+        "latency": 0.3148213698322412,
+        "utilization": 97.89471910841634,
+        "cp_latency": 0.3081934956905411
+    }
+}

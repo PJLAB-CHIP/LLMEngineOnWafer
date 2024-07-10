@@ -26,11 +26,15 @@ def run_simulation(cfg):
     power_model = init_power_model(cfg)
     # 根据yaml配置文件使用instantiate函数初始化类对象
     chiplet = init_chiplet(cfg)
-    #cluster = init_cluster(cfg)  # Cluster is a collection of Servers and interconnected Links.
-    router = init_router(cfg, chiplet)  # Router routes Requests to Application Schedulers.
-    arbiter = init_arbiter(cfg, chiplet)  # Arbiter allocates Processors to Application Allocators.
-    applications = init_applications(cfg, chiplet, router, arbiter)  # An Application is the endpoint that a Request targets.
-    trace = init_trace(cfg)  # Analyze and statistic Python program execution flow and call relation
+    # cluster = init_cluster(cfg)  # Cluster is a collection of Servers and interconnected Links.
+    # Router routes Requests to Application Schedulers.
+    router = init_router(cfg, chiplet)
+    # Arbiter allocates Processors to Application Allocators.
+    arbiter = init_arbiter(cfg, chiplet)
+    # An Application is the endpoint that a Request targets.
+    applications = init_applications(cfg, chiplet, router, arbiter)
+    # Analyze and statistic Python program execution flow and call relation
+    trace = init_trace(cfg)
     for application in applications.values():
         router.add_application(application)
         arbiter.add_application(application)
@@ -54,9 +58,9 @@ def run_simulation(cfg):
 @hydra.main(config_path="configs", config_name="config", version_base=None)
 def run(cfg: DictConfig) -> None:
     # print config
-    #print(OmegaConf.to_yaml(cfg, resolve=False))
-    #hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
-    #print(OmegaConf.to_yaml(hydra_cfg, resolve=False))
+    # print(OmegaConf.to_yaml(cfg, resolve=False))
+    # hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
+    # print(OmegaConf.to_yaml(hydra_cfg, resolve=False))
 
     # initialize random number generator
     random.seed(cfg.seed)

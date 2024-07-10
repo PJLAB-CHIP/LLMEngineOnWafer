@@ -67,7 +67,8 @@ def get_static_mapper_duration(batch, instance):
     tile = instance.processors[0]
     die_NOC = tile._die.d2d_bw
     tile_num = len(instance.processors)
-    die_num = tile_num / 144 if tile_num / 144 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
+    die_num = tile_num / 144 if tile_num / \
+        144 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
     prompt_tasks = []
     token_tasks = []
     batch_tokens = 0
@@ -81,53 +82,48 @@ def get_static_mapper_duration(batch, instance):
             batch_tokens += 1
         else:
             raise NotImplementedError
-    
+
     if len(prompt_tasks) == len(batch):  # pure prefill batch
-        #print(f'prompt batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
-        prompt_time = prefill_static_mapper(batch_tokens, die_num, die_NOC, tile_num, model_name)
+        # print(f'prompt batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
+        prompt_time = prefill_static_mapper(
+            batch_tokens, die_num, die_NOC, tile_num, model_name)
         return prompt_time
     elif len(token_tasks) == len(batch):  # pure decode batch
         # print(f'token batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
-        kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens \
-                        for token_task in token_tasks]  # 获取每个task的kv长度
-        #print(f'KV list: {kv_list}')
-        #ipdb.set_trace()
-        decode_time = batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name)
+        kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
+                   for token_task in token_tasks]  # 获取每个task的kv长度
+        # print(f'KV list: {kv_list}')
+        # ipdb.set_trace()
+        decode_time = batch_decode_static_mapper(
+            kv_list, die_num, die_NOC, tile_num, model_name)
         return decode_time
     else:  # 没有混合池策略
         raise NotImplementedError
-        
-    
+
+
 def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="llama2_70b"):
+    die_num = int(die_num)
     prefill_len = find_powers_of_two_nearest(input_len)
     if prefill_len < 256:  # 256长度才能达到访存瓶颈
-        prefill_name = f"prefill/prefill_256.json"
+        prefill_name = f"prefill_256.json"
     # elif prefill_len > 4096:
-        
-    else:  
-        prefill_name = f"prefill/prefill_{prefill_len}.json"
-    
-    cur_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    prefill_input_path = os.path.join(cur_dir, f"./input/{model_name}/{prefill_name}")
-    prefill_output_path = os.path.join(cur_dir, f"./output/{model_name}/{prefill_name}")
-    llm_config = load_config(prefill_input_path)
+    else:
+        prefill_name = f"prefill_{prefill_len}.json"
 
+    cur_dir = os.path.dirname(os.path.abspath(__file__))
+    output_folder = f"./output/{model_name}/die-{die_num}-tile-{tile_num}/prefill"
+
+    prefill_input_path = os.path.join(
+        cur_dir, f"./input/{model_name}/prefill/{prefill_name}")
+
+    prefill_output_path = os.path.join(
+        cur_dir, os.path.join(output_folder, prefill_name))
+
+    llm_config = load_config(prefill_input_path)
     # 默认只采用TP并行，获取切分后的权重大小
     llm_config, comm_time = megatron_shard(llm_config, die_num, die_NOC)
 
-    #print(llm_config)
-    llama7b = tbk.Llama_block(llm_config)
-    try:
-        tx8_config = load_config(os.path.join(cur_dir, './tile_parameter.json'))
-    except:
-        print(input_len)
-    tx8_config['TILE_NUM'] = tile_num
-    hardware = Tx8(tx8_config)
-    # print(hardware.config)
-    # preset 是否使用预设切分;details是否打印映射的详细信息
-    mapping_result = manual_mapper(
-        llama7b, hardware, output_path=prefill_output_path, preset=False, details=False)
+    mapping_result = load_config(prefill_output_path)
 
     # 单个block，单个die的结果
     comp_time = mapping_result["TotalLayer"]["latency"]
@@ -137,7 +133,7 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
     # scale power 2 input into origin input
     if prefill_len < 256:
         final_time = tot_time
-    else: 
+    else:
         final_time = tot_time * (1.0*input_len/prefill_len)
     return final_time
 
@@ -154,7 +150,7 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
 #     tx8_config = load_config(os.path.join(cur_dir, './tile_parameter.json'))
 #     tx8_config['TILE_NUM'] = tile_num
 #     hardware = Tx8(tx8_config)
-    
+
 #     # 默认只采用TP并行，获取切分后的权重大小
 #     llm_config, comm_time = megatron_shard(llm_config, die_num, die_NOC)
 #     mapping_result = decode_mapper(  # NEW: 将hardware接口暴露在外面方便修改tx8_config里的tile_num
@@ -170,16 +166,18 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
 
 
 def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="llama2_70b"):
-    #ipdb.set_trace()
+    # ipdb.set_trace()
     # 只取出第一个用户的KV len值
     # HACK: 后面会把json文件里的KV换成kv_list里面的值, 这里随便读一个
-    KV_len = 31 # kv_list[0]
+    KV_len = 31  # kv_list[0]
     decode_len = find_powers_of_two_nearest(KV_len+1)
     decode_name = f"decode/decode_1_prefill_{decode_len-1}.json"
 
     cur_dir = os.path.dirname(os.path.abspath(__file__))
-    decode_input_path = os.path.join(cur_dir, f"./input/{model_name}/{decode_name}")
-    decode_output_path = os.path.join(cur_dir, f"./output/{model_name}/{decode_name}")
+    decode_input_path = os.path.join(
+        cur_dir, f"./input/{model_name}/{decode_name}")
+    decode_output_path = os.path.join(
+        cur_dir, f"./output/{model_name}/{decode_name}")
 
     llm_config = load_config(decode_input_path)
     tx8_config = load_config(os.path.join(cur_dir, './tile_parameter.json'))
@@ -187,8 +185,8 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
     hardware = Tx8(tx8_config)
     # 默认只采用TP并行，获取切分后的权重大小
     llm_config, comm_time = megatron_shard(llm_config, die_num, die_NOC)
-    mapping_result = decode_mapper( # NEW: 将hardware接口暴露在外面方便修改tx8_config里的tile_num
-                                kv_list, llm_config, hardware, decode_output_path, details=False)
+    mapping_result = decode_mapper(  # NEW: 将hardware接口暴露在外面方便修改tx8_config里的tile_num
+        kv_list, llm_config, hardware, decode_output_path, details=False)
 
     comp_time = mapping_result["TotalLayer"]["latency"]
 
@@ -197,11 +195,6 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
     # scale power 2 input into origin input
     final_time = tot_time
     return final_time
-
-
-
-
-
 
 
 if __name__ == "__main__":
