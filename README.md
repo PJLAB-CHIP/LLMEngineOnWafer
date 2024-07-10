@@ -10,7 +10,12 @@ conda activate splitwise-sim
 cd LLMEngineV3
 pip install -r requirements.txt
 ```
-
+# Run command
+```bash
+python run.py trace.filename=AzureLLMInferenceTrace_code  
+python run.py trace.filename=AzureLLMInferenceTrace_conv  
+python run.py trace.filename=test_trace  
+```
 # DONE
 
 1. [X] 流程跑通
@@ -18,18 +23,19 @@ pip install -r requirements.txt
 3. [X] schduler修改(已优化逻辑)
 4. [X] DRAM内存分配问题，已根据输出数据画出token instance的kv cache 峰值
 5. [X] 将`static_mapper()`换成了查表，避免每次都profile
+6. [X] 开发了KV Cache峰值统计函数，发现decode中组batch不合理，太小了
 
 
 # WARNING !!!
-1. [] llama2-70b模型kv cache peak占用很大，可能考虑改架构
+1. [] decode中组batch太小了，导致kv占用太高了！
 
 # TODO
-
-1. [ ] 确定prefill和decode的tp粒度以及instance个数
-2. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**
-3. [ ] 功耗如何计算
-4. [ ] 资源交换算法设计**(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)**
-5. [ ] 是否要支持可变tp
+1. [ ] 添加llama2-7b、llama2-13b、opt-7b、opt-13b、opt-66B模型，修改对应的instance个数和tp粒度 -- 目前考虑70b模型太大了放不下！Wafer上的片上内存大概100GB左右，只能放下13B
+2. [ ] 开发对应的baseline版本，每个用户从prefill到全部的decode执行完毕，独占计算单元！
+3. [ ] 功耗如何计算，修改底层的
+4. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**，资源交换要考虑位置
+5. [ ] 资源交换算法设计**(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)**
+<!-- 6. [ ] 是否要支持可变tp -->
 
 # V3
 

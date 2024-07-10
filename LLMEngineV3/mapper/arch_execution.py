@@ -723,6 +723,15 @@ class Tx8:
         
         Utilization = total_cp_latency / latency
         
+        # total_DRAM乘以DRAM带宽，获得访存量： Byte VS bit
+        # total_DRAM: ms, 单位
+        # total_cm_latency: intra-NoC 带宽
+        # die间通信量 统计！
+        # total_cp_latency：乘以算力，获得算力
+        # KV Cache传输能耗
+        # 能耗提升原因：breakdown！10%，归一化能耗就行，不要用pj/bit
+        # 可扩展性： 不搞，13b -- 26GB权重，KV -- 模型可扩展的性质，KV 26+50, 3个G，16个Die
+        # 70b, 176b --> 
         return total_cp_latency, total_cm_latency, total_DRAM, latency, Utilization 
     
     def swap_values(self, i_params, w_params):
