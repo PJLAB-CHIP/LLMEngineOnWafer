@@ -14,21 +14,14 @@ def load_config(input_path):
     return config
 
 
-def decode_mapper(kv_list, llm_config, hardware, output_path, details):
+def decode_mapper(kv_list, llm_config, hardware, baseline_path, details):
 
     # baseline result for non-FlashAttn
     # baseline_path = "./result/llama2_7b/prefill/prefill_32_result.json"
     # tx8_config = load_config('tile_parameter.json')
     # hardware = Tx8(tx8_config)
 
-    len1 = find_powers_of_two_nearest(hardware.config["TILE_NUM"])
-    len2 = find_powers_of_two_nearest(len(kv_list))
-    llm_config["S"] = max(len1, len2)
-    llama7b = tbk.Llama_block(llm_config)
-    # DONE：verify successfully 大概是prefill=32，不切分模型执行时间的 1/13倍！
-    baseline_result = manual_mapper(
-        llama7b, hardware, output_path=output_path, preset=False, details=details)
-
+    baseline_result = load_config(baseline_path)
     # # load prefill=4096 result
     # baseline_result = load_config(baseline_path)
 
@@ -85,15 +78,11 @@ def decode_mapper(kv_list, llm_config, hardware, output_path, details):
     if details:
         print(result)
 
-    with open(output_path, 'w') as output_file:
-        json.dump(result, output_file, indent=4)
-    if details:
-        print("File save successful!")
     return result
 
 
 if __name__ == "__main__":
-    
+
     tx8_config = load_config('tile_parameter.json')
     hardware = Tx8(tx8_config)
     # 最小输入长度为大于等于tile_num的2次幂
