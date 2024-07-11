@@ -3,7 +3,7 @@ from .mapper_decode import decode_mapper
 from . import transformer_block as tbk
 from .arch_execution import Tx8
 import math
-from .util import load_config, find_powers_of_two, find_powers_of_two_nearest
+from .util import *
 from task import TaskType, PromptTask, TokenTask
 import ipdb
 import os
@@ -85,18 +85,18 @@ def get_static_mapper_duration(batch, instance):
 
     if len(prompt_tasks) == len(batch):  # pure prefill batch
         # print(f'prompt batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
-        prompt_time = prefill_static_mapper(
+        prompt_time, energy = prefill_static_mapper(
             batch_tokens, die_num, die_NOC, tile_num, model_name)
-        return prompt_time
+        return prompt_time, energy
     elif len(token_tasks) == len(batch):  # pure decode batch
         # print(f'token batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
         kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
                    for token_task in token_tasks]  # 获取每个task的kv长度
         # print(f'KV list: {kv_list}')
         # ipdb.set_trace()
-        decode_time = batch_decode_static_mapper(
+        decode_time, energy = batch_decode_static_mapper(
             kv_list, die_num, die_NOC, tile_num, model_name)
-        return decode_time
+        return decode_time, energy
     else:  # 没有混合池策略
         raise NotImplementedError
 
@@ -127,7 +127,9 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
 
     # 单个block，单个die的结果
     comp_time = mapping_result["TotalLayer"]["latency"]
-
+    energy = mapping_result["TotalLayer"]["energy"]
+    # add inter-die comm energy
+    energy += comm_time * die_NOC*GB*8*NoC_energy 
     # DONE: 对比了prefill不切分的执行时间，近似为1/die_num
     tot_time = comp_time + comm_time
     # scale power 2 input into origin input
@@ -135,7 +137,7 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
         final_time = tot_time
     else:
         final_time = tot_time * (1.0*input_len/prefill_len)
-    return final_time
+    return final_time, energy
 
 
 def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="llama2_70b"):
@@ -175,12 +177,15 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
         kv_list, llm_config, hardware, decode_baseline_path, details=False)
 
     comp_time = mapping_result["TotalLayer"]["latency"]
+    energy = mapping_result["TotalLayer"]["energy"]
+    # add inter-die comm energy
+    energy += comm_time * die_NOC*GB*8*NoC_energy 
 
     # DONE: 对比了不切分的执行时间，近似为1/die_num
     tot_time = comp_time + comm_time
     # scale power 2 input into origin input
     final_time = tot_time
-    return final_time
+    return final_time, energy
 
 
 if __name__ == "__main__":

@@ -12,6 +12,15 @@ G = 1000**3
 M = 1000**2
 K = 1000
 
+# add energy evaluator
+# 0.7 pJ/bit
+NoC_energy = 0.7
+# 0.018 pJ/op
+MAC_energy = 0.018
+# 7.5 pJ/bit
+DRAM_energy = 7.5
+
+TFLOPS = 1e12
 
 # 查找a到b范围内是不是有2次幂
 

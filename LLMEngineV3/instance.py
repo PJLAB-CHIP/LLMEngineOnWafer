@@ -43,6 +43,7 @@ class Instance():
         self.processors = processors
         self.overheads = overheads
         self.debug = debug
+        self.energy = 0
 
         ## other instance metadata
         self.metrics = InstanceMetrics()
@@ -540,7 +541,7 @@ class ORCAInstance(Instance):
             return
         #ipdb.set_trace()
         # our performance mode
-        self.iteration_duration = get_static_mapper_duration(batch=self.batch,
+        self.iteration_duration, self.energy = get_static_mapper_duration(batch=self.batch,
                                                              instance=self)
         #ipdb.set_trace()
         # 根据performance model预估时间, mixed batch情况是进行prefill的token的时间*1.1

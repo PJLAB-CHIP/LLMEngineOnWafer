@@ -48,6 +48,7 @@ def gemm_auto_opt_mapper(op, arch, TmTn=None, Tk=-1, fusion_op1=None, fusion_op2
     best_cp_latency = 0
     best_stationary = None
     total_cp_latency = 0
+    best_total_energy = 0
     for stationary in ['input', 'weight']:
         if stationary == 'input':
             # [b,m,k,n]输入维度为[b,m,k] 权重维度为[k,n] 输出维度为[b,m,n]
@@ -101,7 +102,7 @@ def gemm_auto_opt_mapper(op, arch, TmTn=None, Tk=-1, fusion_op1=None, fusion_op2
                     o_params = [o_size, nm*nn]
                     cm_size, cm_type, cm_hops = w_params[0], 0, 5
                     # print(i_params, o_params, w_params, cp, cm_size, cm_type, cm_hops)
-                    sram_cap_req, total_cp_latency, _, _, tot_latency, tot_utilization = arch.execute(
+                    sram_cap_req, total_cp_latency, total_cm_latency, total_DRAM, tot_latency, tot_utilization = arch.execute(
                         i_params, o_params, w_params, cp, cm_size, cm_type, cm_hops, details)
                     # print(arch.execute( i_params, o_params, w_params, cp, cm_size, cm_type, cm_hops))
                     # print("total_cp_latency",total_cp_latency)
@@ -112,11 +113,19 @@ def gemm_auto_opt_mapper(op, arch, TmTn=None, Tk=-1, fusion_op1=None, fusion_op2
                         best_latency = tot_latency
                         best_cp_latency = total_cp_latency
                         best_stationary = stationary
+                        
+                        # DONE
+                        # NoC hop energy
+                        best_total_energy = total_cm_latency/1000*arch.config["NOC_BW(GB/s)"]*GB*8*NoC_energy 
+                        # DRAM access energy, B is 8-bit
+                        best_total_energy += total_DRAM/1000*arch.config["DRAM_BW(GB/s)"]*GB*8*DRAM_energy
+                        # Compute MAC energy, MACs is half FLOPS
+                        best_total_energy += total_cp_latency/1000*arch.config["GEMM(TFLOPS)"]*TFLOPS/2*MAC_energy
     if details:
         print('{:<15}, dims={}, best={}, stationary={}'.format(
             op['name'], dims, best_parall, best_stationary))
     result = {"latency": best_latency,
-              'utilization': max_utilization, 'cp_latency': best_cp_latency}
+              'utilization': max_utilization, 'cp_latency': best_cp_latency, "energy": best_total_energy}
     return result
 
 
@@ -142,6 +151,7 @@ def flashatten_mapper(model, arch, Tx_Ty=None, details=True, Head_fused=True):
     best_tx_ty = []
     best_latency = 0
     best_total_cp_latency = 0
+    best_total_energy = 0
     if Head_fused:
         head = dims[3]
     else:
@@ -171,7 +181,7 @@ def flashatten_mapper(model, arch, Tx_Ty=None, details=True, Head_fused=True):
                                           tx*ty*dims[2]/G, 1], [flash_vector_cp_size/G, 0]]
             cm_size, cm_type, cm_hops = w_params[0], 0, 1
             # print('test',i_params,o_params,w_params,cp,cm_size,cm_type,cm_hops)
-            sram_cap_req, total_cp_latency, _, _, tot_latency, tot_utilization = arch.execute(
+            sram_cap_req, total_cp_latency, total_cm_latency, total_DRAM, tot_latency, tot_utilization = arch.execute(
                 i_params, o_params, w_params, cp,  cm_size, cm_type, cm_hops, details)
             # print('data',sram_cap_req,total_cp_latency,_,_,tot_latency, tot_utilization)
             if tot_utilization > max_utilization and sram_cap_req:
@@ -179,6 +189,13 @@ def flashatten_mapper(model, arch, Tx_Ty=None, details=True, Head_fused=True):
                 best_tx_ty = current_tx_ty
                 best_latency = tot_latency
                 best_total_cp_latency = total_cp_latency
+                # DONE
+                # NoC hop energy
+                best_total_energy = total_cm_latency/1000*arch.config["NOC_BW(GB/s)"]*GB*8*NoC_energy 
+                # DRAM access energy, B is 8-bit
+                best_total_energy += total_DRAM/1000*arch.config["DRAM_BW(GB/s)"]*GB*8*DRAM_energy
+                # Compute MAC energy, MACs is half FLOPS
+                best_total_energy += total_cp_latency/1000*arch.config["GEMM(TFLOPS)"]*TFLOPS/2*MAC_energy
                 # print('test',i_params,o_params,w_params,cp,cm_size,cm_type,cm_hops)
                 # print('data,current_tx_ty={},sram_cap_req={},total_cp_latency={},tot_latency={}, tot_utilization={}'.format(best_tx_ty,sram_cap_req,total_cp_latency,tot_latency, tot_utilization))
     if details:
@@ -193,7 +210,7 @@ def flashatten_mapper(model, arch, Tx_Ty=None, details=True, Head_fused=True):
             one_head_latency, one_head_cp_latency))
     # print(best_latency,best_total_cp_latency)
     result = {"latency": dims[3]//head*best_latency, 'utilization': max_utilization,
-              'cp_latency': dims[3]//head*best_total_cp_latency}
+              'cp_latency': dims[3]//head*best_total_cp_latency, "energy": best_total_energy}
     return result
 
 
@@ -213,6 +230,7 @@ def vector_mapper(op, arch, splits=None, details=False):
     best_split = []
     best_latency = 0
     total_cp_latency = 0
+    best_total_energy = 0
     for split in splits:
         i_params = [MBytes(io_shape)/split, split]
         o_params = [MBytes(io_shape)/split, split]
@@ -221,17 +239,24 @@ def vector_mapper(op, arch, splits=None, details=False):
         cp = [[op['compute']/split, 0]]
         # print(op['compute'],op['compute']/split)
         cm_size, cm_type, cm_hops = 0, 0, 0
-        sram_cap_req, total_cp_latency, _, _, tot_latency, tot_utilization = arch.execute(
+        sram_cap_req, total_cp_latency, total_cm_latency, total_DRAM, tot_latency, tot_utilization = arch.execute(
             i_params, o_params, w_params, cp, cm_size, cm_type, cm_hops, details)
         # print(sram_cap_req,total_cp_latency)
         if tot_utilization > max_utilization and sram_cap_req:
             max_utilization = tot_utilization
             best_split = split
             best_latency = tot_latency
+
+            # NoC hop energy
+            best_total_energy = total_cm_latency/1000*arch.config["NOC_BW(GB/s)"]*GB*8*NoC_energy 
+            # DRAM access energy, B is 8-bit
+            best_total_energy += total_DRAM/1000*arch.config["DRAM_BW(GB/s)"]*GB*8*DRAM_energy
+            # Ignore vector compute energy, 
+            # best_total_energy += total_cp_latency/1000*arch.config["GEMM(TFLOPS)"]*TFLOPS/2*MAC_energy
     if details:
         print('{:<15}, best={}'.format(op['name'], best_split))
     result = {"latency": best_latency,
-              'utilization': max_utilization, 'cp_latency': total_cp_latency}
+              'utilization': max_utilization, 'cp_latency': total_cp_latency, "energy": best_total_energy}
     return result
 
 
@@ -328,23 +353,25 @@ def manual_mapper(model, arch, output_path, QKV_fusion=True, preset=True, detail
     tot_cp_latency = 0
     tot_utilization = 0
     utilization = 0
+    tot_energy = 0
     for key, item in mapping_result.items():
         try:
             tot_latency += item['latency']
             tot_cp_latency += item['cp_latency']
+            tot_energy += item['energy']
             tot_utilization += item['utilization']
             if details: # NOTE: 增加通过details取消print
-                print('{:<15}, latency(ms)={:>10.6f}, utilization(%)={:>10.6f}, compute latency(ms)={:>10.6f}'.format(
-                    key, item['latency'], item['utilization']*100, item['cp_latency']))
+                print('{:<15}, latency(ms)={:>10.6f}, energy(pJ)={:>10.6f}, utilization(%)={:>10.6f}, compute latency(ms)={:>10.6f}'.format(
+                    key, item['latency'], item["energy"], item['utilization']*100, item['cp_latency']))
         except:
             print('{:<15}, No suitable mapping result! '.format(key))
     utilization = tot_cp_latency/(tot_latency+1e-35)
     mapping_result['TotalLayer'] = {
-        "latency": tot_latency*Layers/1000, 'utilization': utilization*100, 'cp_latency': tot_cp_latency*Layers/1000}
+        "latency": tot_latency*Layers/1000, "energy": tot_energy, 'utilization': utilization*100, 'cp_latency': tot_cp_latency*Layers/1000}
     # NOTE: 先取消print加快输出
     if details:
-        print('{:<15}, latency(s)={:>10.6f}, utilization(%)={:>10.6f}, compute latency(s)={:>10.6f}'.format(
-            'TotalLayer', tot_latency*Layers/1000, utilization*100, tot_cp_latency*Layers/1000))
+        print('{:<15}, latency(s)={:>10.6f}, energy(pJ)={:>10.6f}, utilization(%)={:>10.6f}, compute latency(s)={:>10.6f}'.format(
+            'TotalLayer', tot_latency*Layers/1000, tot_energy, utilization*100, tot_cp_latency*Layers/1000))
     # 检查是否存在输出文件
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as output_file:

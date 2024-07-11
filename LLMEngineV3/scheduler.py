@@ -563,7 +563,7 @@ class KVJSQScheduler(KVScheduler):
             prompt_task.instance = instance  # 后面不用取消，因为add_kv_cache_transfer会重新指定
             _, new_tasks = self.pre_select_batch(instance, prompt_task) #super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
             if prompt_task in new_tasks:
-                exec_time = get_static_mapper_duration(new_tasks, instance)
+                exec_time, energy = get_static_mapper_duration(new_tasks, instance)
                 end_time = time.time()
                 if exec_time < min_prefill_time:
                     prompt_instance = instance
@@ -586,7 +586,7 @@ class KVJSQScheduler(KVScheduler):
             _, new_tasks = self.pre_select_batch(instance, token_task)#super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
             # #ipdb.set_trace()
             if token_task in new_tasks:
-                exec_time = get_static_mapper_duration(new_tasks, instance)
+                exec_time, energy = get_static_mapper_duration(new_tasks, instance)
                 if exec_time < min_decode_time:
                     token_instance = instance
                     min_decode_time = exec_time

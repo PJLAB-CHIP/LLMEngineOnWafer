@@ -2,60 +2,72 @@
     "RMSNorm": {
         "latency": 0.006652435103125001,
         "utilization": 0.03152457660225587,
-        "cp_latency": 0.0004194304
+        "cp_latency": 0.0004194304,
+        "energy": 1009454048.8704001
     },
     "QKV_fusion": {
         "latency": 0.7029562996425653,
         "utilization": 0.9983437692882303,
-        "cp_latency": 0.7017920418300654
+        "cp_latency": 0.7017920418300654,
+        "energy": 43491144727.26528
     },
     "Flashatten": {
         "latency": 0.06646853833235294,
         "utilization": 0.9928512517061215,
-        "cp_latency": 0.06599337148235294
+        "cp_latency": 0.06599337148235294,
+        "energy": 52244700616.368004
     },
     "Linear": {
         "latency": 0.23501437201627184,
         "utilization": 0.9953888292151981,
-        "cp_latency": 0.23393068061002184
+        "cp_latency": 0.23393068061002184,
+        "energy": 15162664154.56256
     },
     "RMSNorm2": {
         "latency": 0.006652435103125001,
         "utilization": 0.03152457660225587,
-        "cp_latency": 0.0004194304
+        "cp_latency": 0.0004194304,
+        "energy": 1009454048.8704001
     },
     "ResAdd": {
         "latency": 0.0092032768,
         "utilization": 0.0053407064753284396,
-        "cp_latency": 4.75136e-05
+        "cp_latency": 4.75136e-05,
+        "energy": 3250619154.4319997
     },
     "FFNup&SiLU": {
         "latency": 0.6302660576380447,
         "utilization": 0.9982922018813235,
-        "cp_latency": 0.6291896904505447
+        "cp_latency": 0.6291896904505447,
+        "energy": 245913611013.71805
     },
     "FFNgate": {
         "latency": 0.6297650713269336,
         "utilization": 0.9982908433056917,
-        "cp_latency": 0.6286887041394337
+        "cp_latency": 0.6286887041394337,
+        "energy": 42685019185.47968
     },
     "Hadamard": {
         "latency": 0.01598615015,
         "utilization": 0.008263152714101088,
-        "cp_latency": 0.0001277952
+        "cp_latency": 0.0001277952,
+        "energy": 3182671429.632
     },
     "FFNdown": {
         "latency": 0.6297327226941212,
         "utilization": 0.9983421243377334,
-        "cp_latency": 0.6286887041394337
+        "cp_latency": 0.6286887041394337,
+        "energy": 41340850114.396164
     },
     "ResAdd2": {
         "latency": 0.0092032768,
         "utilization": 0.0053407064753284396,
-        "cp_latency": 4.75136e-05
+        "cp_latency": 4.75136e-05,
+        "energy": 3250619154.4319997
     },
     "TotalLayer": {
         "latency": 0.09414082033940926,
+        "energy": 452540807648.0266,
         "utilization": 98.21354402257536,
         "cp_latency": 0.09245903602725929
     }

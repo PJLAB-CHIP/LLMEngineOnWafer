@@ -31,6 +31,7 @@ def decode_mapper(kv_list, llm_config, hardware, baseline_path, details):
 
     flashAttn_time = 0
     flashAttn_cp_time = 0
+    flashAttn_energy = 0
 
     for KV_len in kv_list:
         S = llama_config["S"] = 1
@@ -48,11 +49,13 @@ def decode_mapper(kv_list, llm_config, hardware, baseline_path, details):
 
         Compute_scale = (S*H_QKV*KV + S*KV*H_QKV)*1.0 / (S*D_O*H_O)
         flashAttn_time += Memory_scale * result["Linear"]["latency"]
+        flashAttn_energy += Memory_scale * result["Linear"]["energy"]
         flashAttn_cp_time += Compute_scale * result["Linear"]["cp_latency"]
 
     key = "Flashatten"
 
     result[key]["latency"] = flashAttn_time
+    result[key]["energy"] = flashAttn_energy
     result[key]["cp_latency"] = flashAttn_cp_time
     #
     # result[key]["utilization"] *= scale
@@ -60,6 +63,7 @@ def decode_mapper(kv_list, llm_config, hardware, baseline_path, details):
     tot_latency = 0
     tot_cp_latency = 0
     tot_utilization = 0
+    tot_energy = 0
     utilization = 0
     Layers = llama_config["L"]
     for key, item in result.items():
@@ -67,14 +71,15 @@ def decode_mapper(kv_list, llm_config, hardware, baseline_path, details):
             tot_latency += item['latency']
             tot_cp_latency += item['cp_latency']
             tot_utilization += item['utilization']
+            tot_energy += item['energy']
             if details:
-                print('{:<15}, latency(ms)={:>10.6f}, utilization(%)={:>10.6f}, compute latency(ms)={:>10.6f}'.format(
-                    key, item['latency'], item['utilization']*100, item['cp_latency']))
+                print('{:<15}, latency(ms)={:>10.6f}, energy = {:>10.6f}, utilization(%)={:>10.6f}, compute latency(ms)={:>10.6f}'.format(
+                    key, item['latency'], item['energy'], item['utilization']*100, item['cp_latency']))
         except:
             print('{:<15}, No suitable mapping result! '.format(key))
     utilization = tot_cp_latency/(tot_latency+1e-35)
     result['TotalLayer'] = {
-        "latency": tot_latency*Layers/1000, 'utilization': utilization*100, 'cp_latency': tot_cp_latency*Layers}
+        "latency": tot_latency*Layers/1000, "energy": tot_energy, 'utilization': utilization*100, 'cp_latency': tot_cp_latency*Layers}
     if details:
         print(result)
 
