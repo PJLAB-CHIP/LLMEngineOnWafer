@@ -31,10 +31,11 @@ python run.py trace.filename=test_trace
 
 # TODO
 1. [ ] 添加llama2-7b、llama2-13b、opt-7b、opt-13b、opt-66B模型，修改对应的instance个数和tp粒度
-2. [ ] 开发对应的baseline版本，每个用户从prefill到全部的decode执行完毕，独占计算单元！
-3. [ ] 保存能耗及其分解功耗信息到splitwise中的csv中
-4. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**，资源交换要考虑位置
-5. [ ] 资源交换算法设计**(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)**
+2. [ ] 开发对应的baseline1版本，加速器架构，采用混合方式执行prefill和decode，证明加速器上需要分离式架构才能优化TTFT&TBT之类的！
+1. [ ] 开发对应的baseline2版本，只有改加速器架构，完全复用默认splitwise的调度逻辑，证明直接迁移不合适！
+1. [ ] 保存能耗及其分解功耗信息到splitwise中的csv中
+1. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**，资源交换要考虑位置
+1. [ ] 资源交换算法设计**(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)**
 <!-- 6. [ ] 是否要支持可变tp -->
 
 # V3
