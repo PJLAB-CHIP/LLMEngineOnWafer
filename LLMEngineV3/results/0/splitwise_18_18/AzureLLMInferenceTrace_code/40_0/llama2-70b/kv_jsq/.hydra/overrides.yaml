@@ -1,1 +1,4 @@
-[]
+- applications.0.scheduler=kv_jsq
+- start_state=splitwise
+- trace.filename=AzureLLMInferenceTrace_code
+- seed=0

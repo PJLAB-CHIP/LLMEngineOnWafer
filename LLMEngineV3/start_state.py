@@ -32,18 +32,34 @@ def uniform(start_state_cfg, cluster, applications, **kwargs):
     """
     application = applications[start_state_cfg.application_id]
     allocator = application.allocator
-    servers = cluster.servers
+    servers = cluster.dies
 
     instance_cfg = start_state_cfg.instance
     parallelism = ModelParallelism(pipeline_parallelism=instance_cfg.pipeline_parallelism,
                                    tensor_parallelism=instance_cfg.tensor_parallelism)
 
-    for sku_name in servers:
-        for server in servers[sku_name]:
-            allocator.start_spin_up_instance(instance_cfg=instance_cfg,
-                                             processors=server.processors,
-                                             parallelism=parallelism,
-                                             pre_start=True)
+    tiles = [(die_id, tile_id) for die_id in range(cluster.num_x * cluster.num_y) \
+                                for tile_id in range(cluster.tile_num)]
+
+    num_groups, group_size = instance_cfg.num_instances, instance_cfg.tensor_parallelism
+    remaining_tiles = copy.deepcopy(tiles)
+
+    groups = []
+    for _ in range(num_groups):
+        if len(remaining_tiles) < group_size:
+            break
+        group = []
+        group_tiles = []
+        for _ in range(group_size):
+            tile = remaining_tiles.pop(0) 
+            group.append(tile)  
+            group_tiles.append(cluster.dies[tile[0]].tiles[tile[1]]) # 加入对应id的tile到group_tiles里
+        groups.append(group)
+
+        allocator.start_spin_up_instance(instance_cfg=instance_cfg,
+                            processors=group_tiles, #server.processors[proc_id:proc_id+prompt_parallelism.tensor_parallelism],
+                            parallelism=parallelism,
+                            pre_start=True)
 
 
 def splitwise(start_state_cfg, cluster, applications, **kwargs):

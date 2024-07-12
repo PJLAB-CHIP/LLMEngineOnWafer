@@ -69,17 +69,23 @@ def get_static_mapper_duration(batch, instance):
     tile_num = len(instance.processors)
     die_num = tile_num / 144 if tile_num / \
         144 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
+    # NOTE: change tile_num into normal tile_num range
+    tile_num = 144 if tile_num>144 else tile_num
     prompt_tasks = []
     token_tasks = []
     batch_tokens = 0
+    prompt_tokens = 0
+    decode_tokens = 0
     # 统计该batch的token总数
     for task in batch:
         if isinstance(task, PromptTask):
             prompt_tasks.append(task)
             batch_tokens += task.request.prompt_size
+            prompt_tokens += task.request.prompt_size
         elif isinstance(task, TokenTask):
             token_tasks.append(task)  # 已经生成的token数+1
             batch_tokens += 1
+            decode_tokens += 1
         else:
             raise NotImplementedError
 
@@ -99,7 +105,17 @@ def get_static_mapper_duration(batch, instance):
             kv_list, die_num, die_NOC, tile_num, model_name)
         return decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
     else:  # 没有混合池策略
-        raise NotImplementedError
+        prompt_time, prompt_total_energy, prompt_NoC_energy, prompt_DRAM_energy, prompt_Compute_energy  = prefill_static_mapper(
+        batch_tokens, die_num, die_NOC, tile_num, model_name)
+        
+        kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
+                   for token_task in token_tasks]  # 获取每个task的kv长度
+        # print(f'KV list: {kv_list}')
+        # ipdb.set_trace()
+        decode_time, decode_total_energy, decode_NoC_energy, decode_DRAM_energy, decode_Compute_energy = batch_decode_static_mapper(
+            kv_list, die_num, die_NOC, tile_num, model_name)
+        
+        return prompt_time + decode_time, prompt_total_energy + decode_total_energy, prompt_NoC_energy + decode_NoC_energy, prompt_DRAM_energy + decode_DRAM_energy, prompt_Compute_energy + decode_Compute_energy
 
 
 def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="llama2_70b"):

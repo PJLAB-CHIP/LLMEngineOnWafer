@@ -116,11 +116,14 @@ hydra:
     hydra:
     - hydra.mode=RUN
     task:
+    - applications.0.scheduler=kv_jsq
+    - start_state=splitwise
     - trace.filename=AzureLLMInferenceTrace_conv
+    - seed=0
   job:
     name: run
     chdir: true
-    override_dirname: trace.filename=AzureLLMInferenceTrace_conv
+    override_dirname: applications.0.scheduler=kv_jsq,seed=0,start_state=splitwise,trace.filename=AzureLLMInferenceTrace_conv
     id: ???
     num: ???
     config_name: config
@@ -134,18 +137,18 @@ hydra:
   runtime:
     version: 1.3.2
     version_base: '1.3'
-    cwd: /code/LLMEngineOnWafer/LLMEngineV3
+    cwd: /root/kongdehao/code/LLMEngineOnWafer/LLMEngineV3
     config_sources:
     - path: hydra.conf
       schema: pkg
       provider: hydra
-    - path: /code/LLMEngineOnWafer/LLMEngineV3/configs
+    - path: /root/kongdehao/code/LLMEngineOnWafer/LLMEngineV3/configs
       schema: file
       provider: main
     - path: ''
       schema: structured
       provider: schema
-    output_dir: /code/LLMEngineOnWafer/LLMEngineV3/results/0/splitwise_18_18/AzureLLMInferenceTrace_conv/40_0/llama2-70b/kv_jsq
+    output_dir: /root/kongdehao/code/LLMEngineOnWafer/LLMEngineV3/results/0/splitwise_18_18/AzureLLMInferenceTrace_conv/40_0/llama2-70b/kv_jsq
     choices:
       start_state: splitwise
       trace: test_trace

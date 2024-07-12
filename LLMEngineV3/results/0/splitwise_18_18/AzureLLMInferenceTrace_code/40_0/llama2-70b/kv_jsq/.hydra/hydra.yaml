@@ -115,11 +115,15 @@ hydra:
   overrides:
     hydra:
     - hydra.mode=RUN
-    task: []
+    task:
+    - applications.0.scheduler=kv_jsq
+    - start_state=splitwise
+    - trace.filename=AzureLLMInferenceTrace_code
+    - seed=0
   job:
     name: run
     chdir: true
-    override_dirname: ''
+    override_dirname: applications.0.scheduler=kv_jsq,seed=0,start_state=splitwise,trace.filename=AzureLLMInferenceTrace_code
     id: ???
     num: ???
     config_name: config
