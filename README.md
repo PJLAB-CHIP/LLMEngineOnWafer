@@ -25,14 +25,14 @@ python run.py trace.filename=test_trace
 5. [X] 将`static_mapper()`换成了查表，避免每次都profile
 6. [X] 开发了KV Cache峰值统计函数，发现decode中组batch合理，decode len太长了导致长期占据memory
 7. [X] 开发了mapper中的能耗统计函数，已经接入到scheduler中
-
+8. [X] 开发了mapper中的功耗的分解函数，已经接入到scheduler中
 <!-- # WARNING !!!
 1. [] decode中组batch太小了，导致kv占用太高了！ -->
 
 # TODO
 1. [ ] 添加llama2-7b、llama2-13b、opt-7b、opt-13b、opt-66B模型，修改对应的instance个数和tp粒度
 2. [ ] 开发对应的baseline版本，每个用户从prefill到全部的decode执行完毕，独占计算单元！
-3. [ ] 保存能耗信息到splitwise中的csv中
+3. [ ] 保存能耗及其分解功耗信息到splitwise中的csv中
 4. [ ] prefill和decode 初始化位置(目前是按顺序简单分配)，**根据跳数计算kv cache传输用时**，资源交换要考虑位置
 5. [ ] 资源交换算法设计**(优先级最后，splitwise_aa在跑code数据集的时候基本上也拼不了batch并且没出现混合池)**
 <!-- 6. [ ] 是否要支持可变tp -->

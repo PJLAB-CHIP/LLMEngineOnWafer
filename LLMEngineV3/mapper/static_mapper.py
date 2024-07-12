@@ -85,18 +85,19 @@ def get_static_mapper_duration(batch, instance):
 
     if len(prompt_tasks) == len(batch):  # pure prefill batch
         # print(f'prompt batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
-        prompt_time, energy = prefill_static_mapper(
-            batch_tokens, die_num, die_NOC, tile_num, model_name)
-        return prompt_time, energy
+        prompt_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy  = prefill_static_mapper(
+        batch_tokens, die_num, die_NOC, tile_num, model_name)
+        return prompt_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
+    
     elif len(token_tasks) == len(batch):  # pure decode batch
         # print(f'token batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
         kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
                    for token_task in token_tasks]  # 获取每个task的kv长度
         # print(f'KV list: {kv_list}')
         # ipdb.set_trace()
-        decode_time, energy = batch_decode_static_mapper(
+        decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy = batch_decode_static_mapper(
             kv_list, die_num, die_NOC, tile_num, model_name)
-        return decode_time, energy
+        return decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
     else:  # 没有混合池策略
         raise NotImplementedError
 
@@ -127,9 +128,16 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
 
     # 单个block，单个die的结果
     comp_time = mapping_result["TotalLayer"]["latency"]
-    energy = mapping_result["TotalLayer"]["energy"]
-    # add inter-die comm energy
-    energy += comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy = mapping_result["TotalLayer"]["total_energy"]
+    total_NoC_energy = mapping_result["TotalLayer"]["NoC_energy"]
+    DRAM_energy = mapping_result["TotalLayer"]["DRAM_energy"]
+    Compute_energy = mapping_result["TotalLayer"]["Compute_energy"]
+
+    # add inter-die comm total_energy
+    interNoC_energy = comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy += interNoC_energy
+    total_NoC_energy += interNoC_energy
+    
     # DONE: 对比了prefill不切分的执行时间，近似为1/die_num
     tot_time = comp_time + comm_time
     # scale power 2 input into origin input
@@ -137,7 +145,7 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
         final_time = tot_time
     else:
         final_time = tot_time * (1.0*input_len/prefill_len)
-    return final_time, energy
+    return final_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
 
 
 def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="llama2_70b"):
@@ -177,15 +185,22 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
         kv_list, llm_config, hardware, decode_baseline_path, details=False)
 
     comp_time = mapping_result["TotalLayer"]["latency"]
-    energy = mapping_result["TotalLayer"]["energy"]
-    # add inter-die comm energy
-    energy += comm_time * die_NOC*GB*8*NoC_energy 
+    
+    total_energy = mapping_result["TotalLayer"]["total_energy"]
+    total_NoC_energy = mapping_result["TotalLayer"]["NoC_energy"]
+    DRAM_energy = mapping_result["TotalLayer"]["DRAM_energy"]
+    Compute_energy = mapping_result["TotalLayer"]["Compute_energy"]
+
+    # add inter-die comm total_energy
+    interNoC_energy = comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy += interNoC_energy
+    total_NoC_energy += interNoC_energy
 
     # DONE: 对比了不切分的执行时间，近似为1/die_num
     tot_time = comp_time + comm_time
     # scale power 2 input into origin input
     final_time = tot_time
-    return final_time, energy
+    return final_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
 
 
 if __name__ == "__main__":
