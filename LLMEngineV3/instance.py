@@ -586,6 +586,7 @@ class ORCAInstance(Instance):
             else:
                 print(f"Unexpected task state {task.state} for task {task} in start_iteration")
                 raise ValueError(f"Unexpected task state {task.state} in start_iteration")
+        
         # 设置应该完成的时间, schedule
         self.completion_events["iteration"] = schedule_event(
                         self.iteration_duration * self.num_contiguous_iterations,

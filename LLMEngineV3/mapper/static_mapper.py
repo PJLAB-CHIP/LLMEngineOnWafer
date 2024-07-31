@@ -66,19 +66,30 @@ def get_static_mapper_duration(batch, instance):
     tile = instance.processors[0]
     die_NOC = tile._die.d2d_bw
     tile_num = len(instance.processors)
+<<<<<<< HEAD
     die_num = tile_num / 256 if tile_num / \
         256 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
+=======
+    die_num = tile_num / 144 if tile_num / \
+        144 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
+    # NOTE: change tile_num into normal tile_num range
+    tile_num = 144 if tile_num>144 else tile_num
+>>>>>>> a2adb36b834d5be4f1a2ddea37c4a8bcebb79c93
     prompt_tasks = []
     token_tasks = []
     batch_tokens = 0
+    prompt_tokens = 0
+    decode_tokens = 0
     # 统计该batch的token总数
     for task in batch:
         if isinstance(task, PromptTask):
             prompt_tasks.append(task)
             batch_tokens += task.request.prompt_size
+            prompt_tokens += task.request.prompt_size
         elif isinstance(task, TokenTask):
             token_tasks.append(task)  # 已经生成的token数+1
             batch_tokens += 1
+            decode_tokens += 1
         else:
             raise NotImplementedError
 
@@ -92,6 +103,7 @@ def get_static_mapper_duration(batch, instance):
         # print(f'token batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
         kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
                    for token_task in token_tasks]  # 获取每个task的kv长度
+<<<<<<< HEAD
 
         decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy = batch_decode_static_mapper(
             kv_list, die_num, die_NOC, tile_num, model_name)
@@ -107,6 +119,25 @@ def get_static_mapper_duration(batch, instance):
         return prompt_time+decode_time, prefill_energy+decode_energy, prefill_NoC_energy+decode_NoC_energy, \
                 prefill_DRAM_energy+decode_DRAM_energy, prefill_Compute_energy+decode_Compute_energy
         raise NotImplementedError
+=======
+        # print(f'KV list: {kv_list}')
+        # ipdb.set_trace()
+        decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy = batch_decode_static_mapper(
+            kv_list, die_num, die_NOC, tile_num, model_name)
+        return decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
+    else:  # 没有混合池策略
+        prompt_time, prompt_total_energy, prompt_NoC_energy, prompt_DRAM_energy, prompt_Compute_energy  = prefill_static_mapper(
+        batch_tokens, die_num, die_NOC, tile_num, model_name)
+        
+        kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
+                   for token_task in token_tasks]  # 获取每个task的kv长度
+        # print(f'KV list: {kv_list}')
+        # ipdb.set_trace()
+        decode_time, decode_total_energy, decode_NoC_energy, decode_DRAM_energy, decode_Compute_energy = batch_decode_static_mapper(
+            kv_list, die_num, die_NOC, tile_num, model_name)
+        
+        return prompt_time + decode_time, prompt_total_energy + decode_total_energy, prompt_NoC_energy + decode_NoC_energy, prompt_DRAM_energy + decode_DRAM_energy, prompt_Compute_energy + decode_Compute_energy
+>>>>>>> a2adb36b834d5be4f1a2ddea37c4a8bcebb79c93
 
 
 def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="llama2_70b"):
@@ -192,6 +223,10 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
         kv_list, llm_config, hardware, decode_baseline_path, details=False)
 
     comp_time = mapping_result["TotalLayer"]["latency"]
+<<<<<<< HEAD
+=======
+    
+>>>>>>> a2adb36b834d5be4f1a2ddea37c4a8bcebb79c93
     total_energy = mapping_result["TotalLayer"]["total_energy"]
     total_NoC_energy = mapping_result["TotalLayer"]["NoC_energy"]
     DRAM_energy = mapping_result["TotalLayer"]["DRAM_energy"]
@@ -207,7 +242,10 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
     # scale power 2 input into origin input
     final_time = tot_time
     return final_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
+<<<<<<< HEAD
 
+=======
+>>>>>>> a2adb36b834d5be4f1a2ddea37c4a8bcebb79c93
 
 
 if __name__ == "__main__":
