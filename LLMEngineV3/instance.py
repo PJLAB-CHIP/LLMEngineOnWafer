@@ -55,7 +55,7 @@ class Instance():
         self.completion_events = {}
 
         ## memory management
-        self.memory = self.model.size.total_size
+        self.memory = 0  # self.model.size.total_size
         self.memory_allocs = defaultdict(int)  # 记录model和request的内存大小
         self.memory_allocs["model"] = self.model.size.total_size
         self.max_memory = sum(self.processors[0]._die.allocated_memory.values())#self.processors[0].memory_size * len(self.processors)
@@ -448,18 +448,18 @@ class ORCAInstance(Instance):
         for task in old_batch:
             new_batch.append(task)
             batch_tokens += task.tokens_per_iteration  # NOTE: NEW_ADDED
-        
-        # if len(old_batch) > 0:
-        #     print(f'old batch tokens: {[task.tokens_per_iteration for task in old_batch]}')     
+        print(f'{self.tag} instance: {self.instance_id}, pending task {[(request.request_id, self.request_tasks[request][0].node_id, self.request_tasks[request][0].tokens_per_iteration) for request in self.request_tasks]}')
+        if len(old_batch) > 0:
+            print(f'old batch tokens: {[task.tokens_per_iteration for task in old_batch]}')     
         memory = self.memory
-        
+        #ipdb.set_trace()
         for request in self.pending_requests:
             if len(new_batch) == self.max_batch_size:
                 print("Reached max batch size")
                 break
             # HACK: new_batch只会在>0时判断是否会超出，所以就算单个prompt大于max_batch_tokens也会加入task
             if len(new_batch) > 0 and batch_tokens + task.tokens_per_iteration > self.max_batch_tokens:      
-                #print(f"Exceeded max batch tokens: batch_tokens={batch_tokens}, task.tokens_per_iteration={task.tokens_per_iteration}, max_batch_tokens={self.max_batch_tokens}")
+                print(f"Exceeded max batch tokens: batch_tokens={batch_tokens}, task.tokens_per_iteration={task.tokens_per_iteration}, max_batch_tokens={self.max_batch_tokens}")
                 break
             
             task = self.request_tasks[request][0]
@@ -488,14 +488,13 @@ class ORCAInstance(Instance):
                 new_tasks.append(task)
                 memory += task.memory
                 batch_tokens += task.tokens_per_iteration  # NOTE: NEW_ADDED
-                #print(f"Added task: {task.tokens_per_iteration}, batch_tokens now: {batch_tokens}, len(batch): {len(new_batch)}")
+                print(f"Added task: {task.tokens_per_iteration}, batch_tokens now: {batch_tokens}, len(batch): {len(new_batch)}")
             else:
                 print("Exceeded max memory")
                 break
-
         # ORCA Instance 不支持抢占
         assert len(preempted_tasks) == 0
-        #print(f'total batch tokens: {batch_tokens}, total tasks in batch: {len(new_batch)}')
+        print(f'{self.tag} instance: {self.instance_id}, batch task {[(task.request.request_id, task.node_id)for task in new_batch]}')
         return preempted_tasks, new_tasks
 
     def start_iteration(self):
@@ -510,7 +509,6 @@ class ORCAInstance(Instance):
         # 5. pending_queue的其他
 
         preempted_tasks, new_tasks = ORCAInstance.select_batch(self)  # 我们目前不执行抢占，只调用父类的方法
-        
         for task in preempted_tasks:  # 在old_batch但不在new_batch的
             self.preempt_task(task)  # 按到来时间重新插入到pending_queue
 
@@ -540,6 +538,8 @@ class ORCAInstance(Instance):
                 self.application.scheduler.notify_free_instance(self)
             return
         #ipdb.set_trace()
+        print(f'new batch tokens: {[task.tokens_per_iteration for task in self.batch]}')
+        print('-'*100)
         # our performance mode
         self.iteration_duration, self.energy = get_static_mapper_duration(batch=self.batch,
                                                              instance=self)
@@ -632,7 +632,7 @@ class ORCAInstance(Instance):
 
         # start next iteration
         self.pause_next_iteration = False
-        print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
+        #print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
         self.start_iteration()
 
     def task_completion(self, task):

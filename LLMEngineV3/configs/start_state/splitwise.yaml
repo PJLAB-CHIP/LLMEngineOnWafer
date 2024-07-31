@@ -6,18 +6,18 @@ split_type: homogeneous
 prompt:
   instance_type: Splitwise
   max_batch_size: 512
-  max_batch_tokens: 8192
+  max_batch_tokens: 2048
   max_preemptions: 0
   pipeline_parallelism: 1
   tensor_parallelism: 144
-  num_instances: 18
+  num_instances: 31
   instance_names: ["dgx-a100"]
 token:
   instance_type: Splitwise
   max_batch_size: 512
-  max_batch_tokens: 8192
+  max_batch_tokens: 2048
   max_preemptions: 0
   pipeline_parallelism: 1
   tensor_parallelism: 144
-  num_instances: 18
+  num_instances: 5
   instance_names: ["dgx-a100"]

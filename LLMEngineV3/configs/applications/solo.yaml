@@ -3,8 +3,8 @@
 - application_id: 0
   #model_architecture: bloom-176b
   #model_size: bloom-176b-fp16
-  model_architecture: llama2-70b
-  model_size: llama2-70b-fp16
+  model_architecture: llama2-13b
+  model_size: llama2-13b-fp16
   allocator: noop
   #scheduler: mixed_pool
   scheduler: kv_jsq

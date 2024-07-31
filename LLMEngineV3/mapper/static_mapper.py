@@ -141,13 +141,13 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
 
 
 def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="llama2_70b"):
-    # ipdb.set_trace()
+    #ipdb.set_trace()
     # 只取出第一个用户的KV len值
     # HACK: 后面会把json文件里的KV换成kv_list里面的值, 这里随便读一个
     die_num = int(die_num)
     tile_num = int(tile_num)
 
-    KV_len = 31  # kv_list[0]
+    KV_len = 127  # kv_list[0]
     decode_len = find_powers_of_two_nearest(KV_len+1)
     decode_name = f"decode/decode_1_prefill_{decode_len-1}.json"
 
