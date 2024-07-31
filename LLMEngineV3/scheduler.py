@@ -212,7 +212,8 @@ class KVScheduler(Scheduler):
         self.token_processors = token_processors
         self.prompt_instances = []
         self.token_instances = []
-
+        
+        
     def add_instance(self, instance):
         """
         Tracks prompt and token instances differently.
@@ -235,11 +236,74 @@ class KVScheduler(Scheduler):
                     raise ValueError(f"Unsupported instance type: \
                                         {instance.processors[0].name}")
 
+    #def memory_schedule_transfer(self, request, src_instance, dest_instance, bandwidth):
+        
     def add_kv_cache_transfer(self, request, src_instance, dest_instance, bandwidth):
         """
         Convert prompt->token request to prompt->kvtransfer->token request
         by adding a flow node to the request graph.
         """
+        # we use memory scheduler only in our scheduler
+        store_instance = None
+        if isinstance(self, KVJSQScheduler):
+            # 现根据每个instance的tile数量来确定tp的粒度
+            self.prefill_tp = len(self.prompt_instances[0].processors) / 256
+            self.decode_tp = len(self.token_instances[0].processors) / 256
+            self.prefill_num = max(1, int(1 / self.prefill_tp))  # 每个die包含多少个instance
+            self.decode_num = max(1, int(1 / self.decode_tp))  # 每个die包含多少个instance
+            random.seed()
+            # 统计每个die包含的这些instance的memory和
+            mem_list = []
+
+            for i in range(0, len(self.prompt_instances), self.prefill_num):
+                if self.prefill_tp in [2, 4, 6, 8]:  # 扩展适应更多的 tp 值
+                    for j in range(int(self.prefill_tp)):
+                        mem_list.append(('prompt', [self.prompt_instances[i]]))
+                else:
+                    mem_list.append(('prompt', self.prompt_instances[i:i + self.prefill_num]))
+
+            for i in range(0, len(self.token_instances), self.decode_num):
+                if self.decode_tp in [2, 4, 6, 8]:  # 扩展适应更多的 tp 值
+                    for j in range(int(self.decode_tp)):
+                        mem_list.append(('token', [self.token_instances[i]]))
+                else:
+                    mem_list.append(('token', self.token_instances[i:i + self.decode_num]))
+            # 确保 mem_list 包含正确数量的 dram
+            assert len(mem_list) == 20
+
+            def calculate_memory(dram):
+                dram_type, instances = dram
+                if dram_type == 'prompt' and self.prefill_tp in [2, 4, 6, 8]:
+                    divisor = int(self.prefill_tp)
+                    return sum(ins.memory for ins in instances) / divisor
+                elif dram_type == 'token' and self.decode_tp in [2, 4, 6, 8]:
+                    divisor = int(self.decode_tp)
+                    return sum(ins.memory for ins in instances) / divisor
+                else:
+                    return sum(ins.memory for ins in instances)
+
+            # 找到哪个 dram 的占用内存最小
+            min_dram_sum = min(calculate_memory(dram) for dram in mem_list)
+            min_drams = [dram for dram in mem_list if calculate_memory(dram) == min_dram_sum]
+            print('-'*150)
+            print(f'Memory List: {[[(ins.instance_id, f"{ins.memory / 2 ** 30:.2f}") for ins in dram[1]] for dram in mem_list]}')
+            print(f'Min Memory Sum: {min_dram_sum / 2 ** 30:.2f}')
+            print(f'Choices: {[[ins.instance_id for ins in dram[1]] for dram in min_drams]}')
+            # 从最小 dram 列表中随机选择一个
+            selected_dram = random.choice(min_drams)
+            # 找到该 dram 所属 die 里最小内存的 instance
+            min_instance_memory = min(ins.memory for ins in selected_dram[1])
+            min_instances = [ins for ins in selected_dram[1] if ins.memory == min_instance_memory]
+            print(f'Selected Dram Memory: {[(ins.instance_id, f"{ins.memory / 2 ** 30:.2f}") for ins in selected_dram[1]]}')
+            print(f'Min Instance Memory: {min_instance_memory / 2 ** 30:.2f}')
+            # 从最小内存 instance 列表中随机选择一个
+            store_instance = random.choice(min_instances)
+            print(f'Selected: {store_instance.instance_id}')
+            assert min_dram_sum >= 0
+            assert min_instance_memory >= 0
+        else:
+            store_instance = dest_instance
+        #store_instance = dest_instance
         prompt_task = request.root_node
         token_task = next(request.successors(prompt_task))
 
@@ -250,9 +314,10 @@ class KVScheduler(Scheduler):
         kv_transfer_flow = request.create_flow(FlowType.KVCacheTransfer,
                                                size=flow_size,
                                                src=src_instance,
-                                               dest=dest_instance)
-        kv_transfer_flow.notify = True
+                                               dest=store_instance)
 
+        kv_transfer_flow.notify = True
+        #print(f'Request: KV Cache: {flow_size / 2 ** 30:.2f}, src_instance: {src_instance.instance_id}, store_instance: {store_instance.instance_id}, dest_instance: {dest_instance.instance_id}')
         # update request DAG
         request.flow_node = kv_transfer_flow
         request.dag.remove_edge(prompt_task, token_task)
@@ -260,11 +325,14 @@ class KVScheduler(Scheduler):
         request.dag.add_edge(kv_transfer_flow, token_task)
 
         # assign tasks and flows to instances and links
+        # 默认是传输到decode pool，后面还得修改
         prompt_task.instance = src_instance
         token_task.instance = dest_instance
+        token_task.store_instance = store_instance
         # NOTE: simulate delay by adding a link of configurable bandwidth
         kv_transfer_flow.link = DummyLink(name="DummyLink",
                                           bandwidth=bandwidth)
+        return store_instance
 
 
 class RandomScheduler(Scheduler):
@@ -469,7 +537,7 @@ class KVJSQScheduler(KVScheduler):
         instance.add_to_pool(pred_task)
         pending_requests = instance.pending_requests
         old_batch = instance.batch
-        memory = deepcopy(instance.memory)
+        memory = deepcopy(instance.sched_memory)
         pending_tokens = deepcopy(instance.pending_tokens)
         max_memory = instance.max_memory
         max_batch_size = instance.max_batch_size
@@ -485,6 +553,7 @@ class KVJSQScheduler(KVScheduler):
             batch_tokens += task.tokens_per_iteration  # NOTE: NEW_ADDED
             
         for request in pending_requests:
+            task = instance.request_tasks[request][0]
             if len(new_batch) == max_batch_size:
                 print("Reached max batch size")
                 break
@@ -493,7 +562,6 @@ class KVJSQScheduler(KVScheduler):
                 #print(f"Exceeded max batch tokens: batch_tokens={batch_tokens}, task.tokens_per_iteration={task.tokens_per_iteration}, max_batch_tokens={self.max_batch_tokens}")
                 break
             
-            task = instance.request_tasks[request][0]
             if task in old_batch:
                 continue
             
@@ -504,24 +572,14 @@ class KVJSQScheduler(KVScheduler):
                 continue
             
             if task.memory + memory <= max_memory:
-                '''
-                TODO: 这种情况会避开前面的检查, 暂时没有看出是为什么
-                Added task: 880, batch_tokens now: 880
-                Added task: 7373, batch_tokens now: 8253
-                Exceeded max batch tokens: batch_tokens=8253, task.tokens_per_iteration=7373, max_batch_tokens=2048
-                total batch tokens: 8253, total tasks in batch: 2
-                '''
-                if batch_tokens + task.tokens_per_iteration > max_batch_tokens and len(new_batch) > 0:  # FIXME: 这里有bug
-                    #print(f"{self.tag} Instance {self.instance_id} Exceeded max batch tokens when considering task: batch_tokens={batch_tokens}, task.tokens_per_iteration={task.tokens_per_iteration}, max_batch_tokens={self.max_batch_tokens}, len(batch): {len(new_batch)}")
-                    break
                 new_batch.append(task)
                 new_tasks.append(task)
                 memory += task.memory
                 batch_tokens += task.tokens_per_iteration  # NOTE: NEW_ADDED
                 #print(f"Added task: {task.tokens_per_iteration}, batch_tokens now: {batch_tokens}, len(batch): {len(new_batch)}")
             else:
-                print("Exceeded max memory")
-                break
+                #print("Exceeded max memory")
+                continue
         instance.remove_from_pool(pred_task)
         # ORCA Instance 不支持抢占
         assert len(preempted_tasks) == 0
@@ -555,16 +613,16 @@ class KVJSQScheduler(KVScheduler):
         # 调用底层的静态分析器获取预估执行时间最短的 Prompt Instance
         prompt_instance = None
         min_prefill_time = sys.maxsize
+        random.seed(time.time())
         for instance in random.sample(self.prompt_instances, len(self.prompt_instances)):  # 遍历每个 Prompt Instance
-            if instance.pending_tokens == 0:
+            if instance.sched_pending_tokens == 0:
                 prompt_instance = instance
                 break
             # 首先要把task的instance指定为该instance否则执行不了select_batch()
             prompt_task.instance = instance  # 后面不用取消，因为add_kv_cache_transfer会重新指定
             _, new_tasks = self.pre_select_batch(instance, prompt_task) #super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
             if prompt_task in new_tasks:
-                exec_time, energy = get_static_mapper_duration(new_tasks, instance)
-                end_time = time.time()
+                exec_time, _, _, _, _ = get_static_mapper_duration(new_tasks, instance)
                 if exec_time < min_prefill_time:
                     prompt_instance = instance
                     min_prefill_time = exec_time
@@ -572,13 +630,13 @@ class KVJSQScheduler(KVScheduler):
         # 如果下个组的batch里面没有该task，那说明该Instance已经超过了max_batch_tokens, 那执行时间肯定不是最短           
         if prompt_instance == None:  # HACK: 在所有的 Prompt Instance里找不到能在下个batch执行的
              prompt_instance = min(self.prompt_instances,  # 选择待执行token数最短的
-                              key=lambda instance: instance.pending_tokens)    
+                              key=lambda instance: instance.sched_pending_tokens)    
                           
         # decode 同理
         token_instance = None       
         min_decode_time = sys.maxsize
         for instance in random.sample(self.token_instances, len(self.token_instances)):
-            if instance.pending_tokens == 0:
+            if instance.sched_pending_tokens == 0:
                 token_instance = instance
                 break
             # 首先要把task的instance指定为该instance否则执行不了select_batch()
@@ -586,7 +644,7 @@ class KVJSQScheduler(KVScheduler):
             _, new_tasks = self.pre_select_batch(instance, token_task)#super(SplitwiseInstance, instance).select_batch()  # 改成显式调用OCRAInstance的
             # #ipdb.set_trace()
             if token_task in new_tasks:
-                exec_time, energy = get_static_mapper_duration(new_tasks, instance)
+                exec_time, _, _, _, _ = get_static_mapper_duration(new_tasks, instance)
                 if exec_time < min_decode_time:
                     token_instance = instance
                     min_decode_time = exec_time
@@ -594,18 +652,20 @@ class KVJSQScheduler(KVScheduler):
         # 如果下个组的batch里面没有该task，那说明该Instance已经超过了max_batch_tokens, 那执行时间肯定不是最短
         if token_instance == None:  # HACK: 在所有的 Token Instance 里找不到能在下个batch执行的
             token_instance =  min(self.token_instances,  # 选择待执行token数最短的
-                            key=lambda instance: instance.pending_tokens)
+                            key=lambda instance: instance.sched_pending_tokens)
         # task的instance在add_kv_cache_transfer里面赋值的
         assert prompt_instance != token_instance
-        self.add_kv_cache_transfer(request,
+        store_instance = self.add_kv_cache_transfer(request,
                                        prompt_instance,
                                        token_instance,
                                        self.transfer_bandwidth)
         #bookkeeping
         #ipdb.set_trace()
         prompt_instance.sched_memory += prompt_task.max_memory(prompt_instance)
-        token_instance.sched_memory += prompt_task.max_memory(token_instance) + \
-                                        token_task.max_memory(token_instance)
+        store_instance.sched_memory += prompt_task.max_memory(store_instance)
+        token_instance.sched_memory += token_task.max_memory(token_instance)
+        # token_instance.sched_memory += prompt_task.max_memory(token_instance) + \
+        #                                 token_task.max_memory(token_instance)  # FIXME
                                         
         prompt_instance.sched_pending_tokens += prompt_task.prompt_size
         token_instance.sched_pending_tokens += 1
@@ -810,13 +870,17 @@ class MixedPoolScheduler(KVScheduler):
         # 先在prefill池再在mixed池中找pending queue最短的(如果最短的也很长则返回None)
         prompt_instance = None
         for instances in [self.prompt_instances, self.mixed_instances]:  
-            prompt_instance = self.find_best_prompt_instance(instances, prompt_task)  # JSQ原则
+            #prompt_instance = self.find_best_prompt_instance(instances, prompt_task)  # JSQ原则
+            prompt_instance = min(instances,
+                              key=lambda instance: instance.sched_pending_tokens)
             if prompt_instance is not None: # 在prefill池找到了就不用在mixed池里找了
                 break
         # 找被分配内存的最短的? self.model.size.total_size  要检查是否会OOM           
         token_instance = None
         for instances in [self.token_instances, self.mixed_instances]:
-            token_instance = self.find_best_token_instance(instances, prompt_task, token_task)
+            #token_instance = self.find_best_token_instance(instances, prompt_task, token_task)
+            token_instance = min(instances,
+                              key=lambda instance: instance.sched_pending_tokens)
             if token_instance is not None: # 在token池找到了就不用在mixed池里找了
                 break
         # 如果找不到合适的prefill instance并且存在token instance            
@@ -842,6 +906,8 @@ class MixedPoolScheduler(KVScheduler):
             prompt_instance = min(all_instances,
                                   key=lambda instance: instance.sched_pending_tokens)
             token_instance = prompt_instance
+        assert prompt_instance != token_instance
+        assert len(self.mixed_instances) == 0            
         # prompt和token池不一样时，kv cache transfer
         if prompt_instance != token_instance:
             # ship KV-cache between instances prompt task-->kv transfer-->token task
@@ -857,6 +923,7 @@ class MixedPoolScheduler(KVScheduler):
             # run on same instance
             prompt_task.instance = prompt_instance
             token_task.instance = token_instance
+            token_task.store_instance = token_instance  # new added
             prompt_instance.sched_memory += prompt_task.max_memory(prompt_instance) + \
                                             token_task.max_memory(prompt_instance)
             prompt_task.chain = [token_task]

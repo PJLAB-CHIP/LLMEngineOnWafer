@@ -61,14 +61,13 @@ def megatron_shard(llm_config, die_num, die_NOC):
 # NOTE: only single batch, no pipeline only tensor parallel
 # 默认采用megatron策略，简单评估通信时间！ forward is 2X all-reduce, one is MLP, other is Self-Attn
 
-
 def get_static_mapper_duration(batch, instance):
     model_name = instance.model.name
     tile = instance.processors[0]
     die_NOC = tile._die.d2d_bw
     tile_num = len(instance.processors)
-    die_num = tile_num / 144 if tile_num / \
-        144 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
+    die_num = tile_num / 256 if tile_num / \
+        256 >= 1 else 1  # HACK: 暂定用tile_num/144来估计，不足1就设为1
     prompt_tasks = []
     token_tasks = []
     batch_tokens = 0
@@ -85,27 +84,36 @@ def get_static_mapper_duration(batch, instance):
 
     if len(prompt_tasks) == len(batch):  # pure prefill batch
         # print(f'prompt batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
-        prompt_time, energy = prefill_static_mapper(
-            batch_tokens, die_num, die_NOC, tile_num, model_name)
-        return prompt_time, energy
+        prompt_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy  = prefill_static_mapper(
+        batch_tokens, die_num, die_NOC, tile_num, model_name)
+        return prompt_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
+    
     elif len(token_tasks) == len(batch):  # pure decode batch
         # print(f'token batch, len(batch): {len(batch)}, batch_tokens: {batch_tokens}')
         kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
                    for token_task in token_tasks]  # 获取每个task的kv长度
-        # print(f'KV list: {kv_list}')
-        # ipdb.set_trace()
-        decode_time, energy = batch_decode_static_mapper(
+
+        decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy = batch_decode_static_mapper(
             kv_list, die_num, die_NOC, tile_num, model_name)
-        return decode_time, energy
-    else:  # 没有混合池策略
+        return decode_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
+    else:  # 混合池策略
+        kv_list = [token_task.request.prompt_size + token_task.request.generated_tokens
+                for token_task in token_tasks]
+        prompt_time, prefill_energy, prefill_NoC_energy, prefill_DRAM_energy, prefill_Compute_energy  = prefill_static_mapper(
+        batch_tokens-len(token_tasks), die_num, die_NOC, tile_num, model_name)
+        decode_time, decode_energy, decode_NoC_energy, decode_DRAM_energy, decode_Compute_energy = batch_decode_static_mapper(
+            kv_list, die_num, die_NOC, tile_num, model_name)
+        
+        return prompt_time+decode_time, prefill_energy+decode_energy, prefill_NoC_energy+decode_NoC_energy, \
+                prefill_DRAM_energy+decode_DRAM_energy, prefill_Compute_energy+decode_Compute_energy
         raise NotImplementedError
 
 
 def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="llama2_70b"):
     die_num = int(die_num)
     prefill_len = find_powers_of_two_nearest(input_len)
-    if prefill_len < 256:  # 256长度才能达到访存瓶颈
-        prefill_name = f"prefill_256.json"
+    if prefill_len < 512:  # 512长度才能达到访存瓶颈
+        prefill_name = f"prefill_512.json"
     # elif prefill_len > 4096:
     else:
         prefill_name = f"prefill_{prefill_len}.json"
@@ -124,12 +132,18 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
     llm_config, comm_time = megatron_shard(llm_config, die_num, die_NOC)
 
     mapping_result = load_config(prefill_output_path)
-
     # 单个block，单个die的结果
     comp_time = mapping_result["TotalLayer"]["latency"]
-    energy = mapping_result["TotalLayer"]["energy"]
-    # add inter-die comm energy
-    energy += comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy = mapping_result["TotalLayer"]["total_energy"]
+    total_NoC_energy = mapping_result["TotalLayer"]["NoC_energy"]
+    DRAM_energy = mapping_result["TotalLayer"]["DRAM_energy"]
+    Compute_energy = mapping_result["TotalLayer"]["Compute_energy"]
+
+    # add inter-die comm total_energy
+    interNoC_energy = comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy += interNoC_energy
+    total_NoC_energy += interNoC_energy
+    
     # DONE: 对比了prefill不切分的执行时间，近似为1/die_num
     tot_time = comp_time + comm_time
     # scale power 2 input into origin input
@@ -137,11 +151,11 @@ def prefill_static_mapper(input_len, die_num, die_NOC, tile_num, model_name="lla
         final_time = tot_time
     else:
         final_time = tot_time * (1.0*input_len/prefill_len)
-    return final_time, energy
+    return final_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
 
 
 def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="llama2_70b"):
-    #ipdb.set_trace()
+    # ipdb.set_trace()
     # 只取出第一个用户的KV len值
     # HACK: 后面会把json文件里的KV换成kv_list里面的值, 这里随便读一个
     die_num = int(die_num)
@@ -163,6 +177,7 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
     tx8_config = load_config(os.path.join(cur_dir, './tile_parameter.json'))
     tx8_config['TILE_NUM'] = tile_num
     hardware = Tx8(tx8_config)
+
     # 默认只采用TP并行，获取切分后的权重大小
     llm_config, comm_time = megatron_shard(llm_config, die_num, die_NOC)
 
@@ -177,15 +192,22 @@ def batch_decode_static_mapper(kv_list, die_num, die_NOC, tile_num, model_name="
         kv_list, llm_config, hardware, decode_baseline_path, details=False)
 
     comp_time = mapping_result["TotalLayer"]["latency"]
-    energy = mapping_result["TotalLayer"]["energy"]
-    # add inter-die comm energy
-    energy += comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy = mapping_result["TotalLayer"]["total_energy"]
+    total_NoC_energy = mapping_result["TotalLayer"]["NoC_energy"]
+    DRAM_energy = mapping_result["TotalLayer"]["DRAM_energy"]
+    Compute_energy = mapping_result["TotalLayer"]["Compute_energy"]
+
+    # add inter-die comm total_energy
+    interNoC_energy = comm_time * die_NOC*GB*8*NoC_energy 
+    total_energy += interNoC_energy
+    total_NoC_energy += interNoC_energy
 
     # DONE: 对比了不切分的执行时间，近似为1/die_num
     tot_time = comp_time + comm_time
     # scale power 2 input into origin input
     final_time = tot_time
-    return final_time, energy
+    return final_time, total_energy, total_NoC_energy, DRAM_energy, Compute_energy
+
 
 
 if __name__ == "__main__":
