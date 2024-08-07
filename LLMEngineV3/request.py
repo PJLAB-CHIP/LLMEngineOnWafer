@@ -40,7 +40,7 @@ class Request():
     Requests must have a single root Node.
     """
     request_id: int
-    node_id: count = field(default_factory=count)  # 在数据类中使用可变对象作为默认值，从而避免潜在的共享状态问
+    node_id: count = field(default_factory=count)  
     application_id: int
     request_type: RequestType
     batch_size: int = 1

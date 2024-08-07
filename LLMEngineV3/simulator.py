@@ -90,9 +90,8 @@ class Simulator:
         """
         Run the simulation until the end time.
         """
-        while self.events and self.time < self.end_time:  # 不停的从堆里取数据
+        while self.events and self.time < self.end_time:  
             event = heapq.heappop(self.events)
-            #ipdb.set_trace()
             if event in self.deleted_events:
                 self.deleted_events.remove(event)
                 continue

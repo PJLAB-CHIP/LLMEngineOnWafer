@@ -109,7 +109,7 @@ class Executor():
             link = flow.link
         flow.executor = self
         self.submitted.append(flow)
-        schedule_event(self.overheads.submit_flow,  # flow_arrival->run_flow->flow_completion
+        schedule_event(self.overheads.submit_flow,  
                        lambda link=link,flow=flow: link.flow_arrival(flow))
         # if this is the first flow in the chain, submit the chain
         self.submit_chain(flow.chain)

@@ -509,23 +509,16 @@ class ORCAInstance(Instance):
         """
         Start a new iteration of a batch of tasks.
         """
-        # select a new batch of tasks to run
-        # 1. 超过了max_preemptions的 pending_queue
-        # 2. 要进行prompt的 pending_prompt_queue
-        # 3. 其他被抢占的(没超过抢占次数限制)  blocked_queue
-        # 4. 之前组进batch但没有进行inference的 self.batch
-        # 5. pending_queue的其他
-
-        preempted_tasks, new_tasks = ORCAInstance.select_batch(self)  #self.select_batch() 我们目前不执行抢占，只调用父类的方法
-        for task in preempted_tasks:  # 在old_batch但不在new_batch的
-            self.preempt_task(task)  # 按到来时间重新插入到pending_queue
+        preempted_tasks, new_tasks = ORCAInstance.select_batch(self)  #self.select_batch() 
+        for task in preempted_tasks:  
+            self.preempt_task(task)  
 
         for task in new_tasks:  # Vise Versa
             self.remove_pending_task(task)
-            self.add_to_batch(task)  # 加入到对应的Prefill/Decode batch队列
+            self.add_to_batch(task) 
 
         for request in self.pending_requests:
-            task = self.request_tasks[request][0]  # 取出该request对应的task
+            task = self.request_tasks[request][0]  
             if task not in self.batch:
                 task.num_preemptions += 1
 
@@ -545,15 +538,10 @@ class ORCAInstance(Instance):
             else:
                 self.application.scheduler.notify_free_instance(self)
             return
-        #ipdb.set_trace()
-        #print(f'new batch tokens: {[task.tokens_per_iteration for task in self.batch]}')
-        #print('-'*100)
         # our performance mode
         (self.iteration_duration, self.iteration_tot_energy, self.iteration_noc_energy, 
         self.iteration_dram_energy, self.iteration_comp_energy) = get_static_mapper_duration(batch=self.batch,
                                                                         instance=self)
-        #ipdb.set_trace()
-        # 根据performance model预估时间, mixed batch情况是进行prefill的token的时间*1.1
         # self.iteration_duration = get_iteration_duration(batch=self.batch,  
         #                                                  instance=self)
         # 先用constant performance model进行测试
@@ -561,14 +549,12 @@ class ORCAInstance(Instance):
         #                                        batch=self.batch,
         #                                        instance=self)
 
-        # prefill OR mixed batch = 1, pure decode batch就根据当前batch中的task最少还要生成的token数目连续执行预估
         self.num_contiguous_iterations = self.get_num_contiguous_iterations()  
         self.tot_energy += self.iteration_tot_energy * self.num_contiguous_iterations
         self.noc_energy += self.iteration_noc_energy * self.num_contiguous_iterations
         self.dram_energy += self.iteration_dram_energy * self.num_contiguous_iterations
         self.comp_energy += self.iteration_comp_energy * self.num_contiguous_iterations
         for task in self.batch:
-            # 记录本次迭代生成的token数
             task.generating_tokens = self.num_contiguous_iterations
             if isinstance(task, PromptTask):
                 task.processing_tokens = task.prompt_size
@@ -576,10 +562,9 @@ class ORCAInstance(Instance):
                 task.processing_tokens = self.num_contiguous_iterations
             else:
                 raise ValueError(f"Unexpected task type {task.task_type} in start_iteration")
-            # 记录时间并且切换状态
-            if task.state == NodeState.QUEUED:  # 说明是prefill，记录下排队时间状态改成RUNNING
-                task.run()  # 会给instance分配自己的kv cache
-            elif task.state == NodeState.BLOCKED:  # 说明是被抢占的, 记录下被抢占的时间状态改成RUNNING
+            if task.state == NodeState.QUEUED: 
+                task.run()  
+            elif task.state == NodeState.BLOCKED:  
                 task.run_after_preempt()
             elif task.state == NodeState.RUNNING:
                 pass
@@ -587,7 +572,6 @@ class ORCAInstance(Instance):
                 print(f"Unexpected task state {task.state} for task {task} in start_iteration")
                 raise ValueError(f"Unexpected task state {task.state} in start_iteration")
         
-        # 设置应该完成的时间, schedule
         self.completion_events["iteration"] = schedule_event(
                         self.iteration_duration * self.num_contiguous_iterations,
                         lambda instance=self: instance.complete_iteration())
@@ -608,7 +592,6 @@ class ORCAInstance(Instance):
         elapsed_time = clock() - iteration_start
         num_completed_iterations = (clock() - iteration_start) // self.iteration_duration
         self.num_contiguous_iterations = num_completed_iterations + 1
-        # prompt优先，
         for task in self.batch:
             task.generating_tokens = self.num_contiguous_iterations
             if isinstance(task, TokenTask):
@@ -641,11 +624,10 @@ class ORCAInstance(Instance):
 
         # remove completed tasks from batch
         for task in completed_tasks:
-            self.task_completion(task)  # 会释放掉对应instance的内存
+            self.task_completion(task)  
 
         # start next iteration
         self.pause_next_iteration = False
-        #print(f'{self.tag} instance: {self.instance_id}, comleted task {[(task.request.request_id, task.node_id)for task in completed_tasks]}')
         self.start_iteration()
 
     def task_completion(self, task):
@@ -764,7 +746,7 @@ class SplitwiseInstance(ORCAInstance):
             # if instance is blocked due to memory constraints, do nothing
             if self.memory + task.memory > self.max_memory:
                 return
-            self.start_iteration()  # 我们目前不执行抢占，只调用父类的select_batch方法
+            self.start_iteration()  
             return
 
         # otherwise, add to executing batch on the next iteration
@@ -806,10 +788,6 @@ class SplitwiseInstance(ORCAInstance):
         memory = self.memory
         print('-'*100)
         print(f'{self.tag} Insctance {self.instance_id}, Sched tag: {self.sched_tag}')
-        #print(f"Pending request: {[(request.request_id, self.request_tasks[request][0].node_id, self.request_tasks[request][0].tokens_per_iteration) for request in self.request_tasks]}")
-        # 1. 超过了max_preemptions的
-        # run any task that has been preempted too many times
-        #print(f"\nPending queue: {[(task.request.request_id, task.node_id) for task in self.pending_queue]}")
         for task in self.pending_queue:
             if task.num_preemptions >= self.max_preemptions:
                 print(f"Task {(task.request.request_id, task.node_id)} has been preempted {task.num_preemptions} times, exceeding the limit.")
@@ -821,7 +799,6 @@ class SplitwiseInstance(ORCAInstance):
                     print(f"Batch tokens exceeded, skipping task {(task.request.request_id, task.node_id)}")
                     break
                 if task.request in batch_requests:
-                    #print(f"Task {task} is already in the batch, skipping.")
                     continue
                 if task.state == NodeState.BLOCKED:
                     print(f"Adding blocked task {(task.request.request_id, task.node_id)} to the batch.")
@@ -830,7 +807,6 @@ class SplitwiseInstance(ORCAInstance):
                     batch_tokens += task.tokens_per_iteration
                     continue
                 if task.memory + memory <= self.max_memory:
-                    #print(f"Adding task {(task.request.request_id, task.node_id)} to the batch.")
                     new_batch.append(task)
                     batch_requests.add(task.request)
                     memory += task.memory
@@ -838,12 +814,9 @@ class SplitwiseInstance(ORCAInstance):
                 else:
                     print(f'Preempted Task {(task.request.request_id, task.node_id)} memory {task.memory/2**30:.2f} exceeds memory {self.max_memory/2**30:.2f} - {memory/2**30:.2f}')
             else:
-                #print(f"Task {(task.request.request_id, task.node_id)} has not been preempted enough times, skipping.")
-                break
-        # 2. 要进行prefill的      
+                break 
         # add prompt tasks to the batch
         # assumes we don't have prompt tasks in old_batch since they completed
-        #print(f"\nPending Prompt queue: {[(task.request.request_id, task.node_id) for task in self.pending_prompt_queue]}")
         for task in self.pending_prompt_queue:
             if len(new_batch) == self.max_batch_size:     
                 break
@@ -853,7 +826,6 @@ class SplitwiseInstance(ORCAInstance):
             if task.request in batch_requests:
                 continue
             if task.memory + memory <= self.max_memory:
-                #print(f"Adding prompt task {(task.request.request_id, task.node_id)} to the batch.")
                 new_batch.append(task)
                 batch_requests.add(task.request)
                 memory += task.memory
@@ -861,7 +833,6 @@ class SplitwiseInstance(ORCAInstance):
             else:
                 print(f'Prompt Task {(task.request.request_id, task.node_id)} memory {task.memory/2**30:.2f} exceeds memory {self.max_memory/2**30:.2f} - {memory/2**30:.2f}')
                 break
-        # 3. 其他被抢占的(没超过抢占次数限制)
         # then add blocked token tasks to the batch
         print(f"\nBlocked queue: {[(task.request.request_id, task.node_id) for task in self.blocked_queue]}")
         for task in self.blocked_queue:
@@ -878,9 +849,7 @@ class SplitwiseInstance(ORCAInstance):
             new_batch.append(task)
             batch_requests.add(task.request)
             batch_tokens += task.tokens_per_iteration
-        # 4. 之前组进batch但没有进行inference的
         # then add old_batch token tasks to the batch
-        #print(f"\nOld batch: {[(task.request.request_id, task.node_id) for task in self.batch]}")
         for task in old_batch:
             if len(new_batch) == self.max_batch_size:
                 break
@@ -893,7 +862,6 @@ class SplitwiseInstance(ORCAInstance):
             new_batch.append(task)
             batch_requests.add(task.request)
             batch_tokens += task.tokens_per_iteration
-        # 5. 其他在pending_queue的batch
         # then add any other token tasks to the batch
         print(f'\nRemaining Pending request {[(request.request_id, self.request_tasks[request][0].node_id) for request in self.pending_requests if request not in batch_requests]}')
         for request in self.pending_requests:
@@ -912,7 +880,6 @@ class SplitwiseInstance(ORCAInstance):
                 batch_tokens += task.tokens_per_iteration
                 continue
             if task.memory + memory <= self.max_memory:
-                #print(f"Adding task {(task.request.request_id, task.node_id)} to the batch.")
                 new_batch.append(task)
                 batch_requests.add(task.request)
                 memory += task.memory

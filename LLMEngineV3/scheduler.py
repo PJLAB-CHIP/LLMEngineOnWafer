@@ -246,29 +246,26 @@ class KVScheduler(Scheduler):
         # we use memory scheduler only in our scheduler
         store_instance = None
         if isinstance(self, KVJSQScheduler):
-            # 现根据每个instance的tile数量来确定tp的粒度
             self.prefill_tp = len(self.prompt_instances[0].processors) / 256
             self.decode_tp = len(self.token_instances[0].processors) / 256
-            self.prefill_num = max(1, int(1 / self.prefill_tp))  # 每个die包含多少个instance
-            self.decode_num = max(1, int(1 / self.decode_tp))  # 每个die包含多少个instance
+            self.prefill_num = max(1, int(1 / self.prefill_tp))  
+            self.decode_num = max(1, int(1 / self.decode_tp))  
             random.seed()
-            # 统计每个die包含的这些instance的memory和
             mem_list = []
 
             for i in range(0, len(self.prompt_instances), self.prefill_num):
-                if self.prefill_tp in [2, 4, 6, 8]:  # 扩展适应更多的 tp 值
+                if self.prefill_tp in [2, 4, 6, 8]:  
                     for j in range(int(self.prefill_tp)):
                         mem_list.append(('prompt', [self.prompt_instances[i]]))
                 else:
                     mem_list.append(('prompt', self.prompt_instances[i:i + self.prefill_num]))
 
             for i in range(0, len(self.token_instances), self.decode_num):
-                if self.decode_tp in [2, 4, 6, 8]:  # 扩展适应更多的 tp 值
+                if self.decode_tp in [2, 4, 6, 8]:
                     for j in range(int(self.decode_tp)):
                         mem_list.append(('token', [self.token_instances[i]]))
                 else:
                     mem_list.append(('token', self.token_instances[i:i + self.decode_num]))
-            # 确保 mem_list 包含正确数量的 dram
             assert len(mem_list) == 20
 
             def calculate_memory(dram):
@@ -281,29 +278,18 @@ class KVScheduler(Scheduler):
                     return sum(ins.memory for ins in instances) / divisor
                 else:
                     return sum(ins.memory for ins in instances)
-
-            # 找到哪个 dram 的占用内存最小
+                
             min_dram_sum = min(calculate_memory(dram) for dram in mem_list)
             min_drams = [dram for dram in mem_list if calculate_memory(dram) == min_dram_sum]
-            print('-'*150)
-            print(f'Memory List: {[[(ins.instance_id, f"{ins.memory / 2 ** 30:.2f}") for ins in dram[1]] for dram in mem_list]}')
-            print(f'Min Memory Sum: {min_dram_sum / 2 ** 30:.2f}')
-            print(f'Choices: {[[ins.instance_id for ins in dram[1]] for dram in min_drams]}')
-            # 从最小 dram 列表中随机选择一个
             selected_dram = random.choice(min_drams)
-            # 找到该 dram 所属 die 里最小内存的 instance
             min_instance_memory = min(ins.memory for ins in selected_dram[1])
             min_instances = [ins for ins in selected_dram[1] if ins.memory == min_instance_memory]
-            print(f'Selected Dram Memory: {[(ins.instance_id, f"{ins.memory / 2 ** 30:.2f}") for ins in selected_dram[1]]}')
-            print(f'Min Instance Memory: {min_instance_memory / 2 ** 30:.2f}')
-            # 从最小内存 instance 列表中随机选择一个
             store_instance = random.choice(min_instances)
             print(f'Selected: {store_instance.instance_id}')
             assert min_dram_sum >= 0
             assert min_instance_memory >= 0
         else:
             store_instance = dest_instance
-        #store_instance = dest_instance
         prompt_task = request.root_node
         token_task = next(request.successors(prompt_task))
 
@@ -317,15 +303,12 @@ class KVScheduler(Scheduler):
                                                dest=store_instance)
 
         kv_transfer_flow.notify = True
-        #print(f'Request: KV Cache: {flow_size / 2 ** 30:.2f}, src_instance: {src_instance.instance_id}, store_instance: {store_instance.instance_id}, dest_instance: {dest_instance.instance_id}')
-        # update request DAG
         request.flow_node = kv_transfer_flow
         request.dag.remove_edge(prompt_task, token_task)
         request.dag.add_edge(prompt_task, kv_transfer_flow)
         request.dag.add_edge(kv_transfer_flow, token_task)
 
         # assign tasks and flows to instances and links
-        # 默认是传输到decode pool，后面还得修改
         prompt_task.instance = src_instance
         token_task.instance = dest_instance
         token_task.store_instance = store_instance
@@ -867,25 +850,21 @@ class MixedPoolScheduler(KVScheduler):
         #ipdb.set_trace()
         prompt_task = request.root_node
         token_task = next(request.successors(prompt_task))
-        # 先在prefill池再在mixed池中找pending queue最短的(如果最短的也很长则返回None)
         prompt_instance = None
         for instances in [self.prompt_instances, self.mixed_instances]:  
             #prompt_instance = self.find_best_prompt_instance(instances, prompt_task)  # JSQ原则
             prompt_instance = min(instances,
                               key=lambda instance: instance.sched_pending_tokens)
-            if prompt_instance is not None: # 在prefill池找到了就不用在mixed池里找了
-                break
-        # 找被分配内存的最短的? self.model.size.total_size  要检查是否会OOM           
+            if prompt_instance is not None: 
+                break        
         token_instance = None
         for instances in [self.token_instances, self.mixed_instances]:
             #token_instance = self.find_best_token_instance(instances, prompt_task, token_task)
             token_instance = min(instances,
                               key=lambda instance: instance.sched_pending_tokens)
-            if token_instance is not None: # 在token池找到了就不用在mixed池里找了
-                break
-        # 如果找不到合适的prefill instance并且存在token instance            
+            if token_instance is not None: 
+                break         
         if prompt_instance is None and len(self.token_instances) > 0:
-            # 选择“pending_queue”最短的token instance-->mixed instance
             prompt_instance = min(self.token_instances,
                                   key=lambda instance: instance.sched_pending_tokens)
             self.token_instances.remove(prompt_instance)
@@ -893,14 +872,12 @@ class MixedPoolScheduler(KVScheduler):
             prompt_instance.sched_tag = "mixed"
 
         if token_instance is None and len(self.prompt_instances) > 0:
-            # 选择“sched_memory”最少的prefill instance-->mixed instance
             token_instance = min(self.prompt_instances,
                                  key=lambda instance: (instance.sched_memory))
             self.prompt_instances.remove(token_instance)
             self.mixed_instances.append(token_instance)
             token_instance.sched_tag = "mixed"
 
-        # 还找不到的话就在所有池子里找pending queue最短的
         if prompt_instance is None or token_instance is None:
             all_instances = self.prompt_instances + self.mixed_instances + self.token_instances
             prompt_instance = min(all_instances,
@@ -908,7 +885,6 @@ class MixedPoolScheduler(KVScheduler):
             token_instance = prompt_instance
         assert prompt_instance != token_instance
         assert len(self.mixed_instances) == 0            
-        # prompt和token池不一样时，kv cache transfer
         if prompt_instance != token_instance:
             # ship KV-cache between instances prompt task-->kv transfer-->token task
             self.add_kv_cache_transfer(request,
@@ -918,7 +894,6 @@ class MixedPoolScheduler(KVScheduler):
             prompt_instance.sched_memory += prompt_task.max_memory(prompt_instance)
             token_instance.sched_memory += prompt_task.max_memory(token_instance) + \
                                            token_task.max_memory(token_instance)
-        # 有可能刚好找不到token_instance时把当前prompt_instance变成mixed
         else: 
             # run on same instance
             prompt_task.instance = prompt_instance

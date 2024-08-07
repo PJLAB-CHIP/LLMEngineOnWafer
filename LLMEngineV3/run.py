@@ -14,7 +14,6 @@ from initialize import *
 
 
 # register custom hydra resolver
-# 配置文件中使用 "eval" 解析器来动态执行包含 Python 表达式的字符串
 OmegaConf.register_new_resolver("eval", eval)
 
 
@@ -24,7 +23,6 @@ def run_simulation(cfg):
     orchestrator_repo = init_orchestrator_repo(cfg)
     performance_model = init_performance_model(cfg)
     power_model = init_power_model(cfg)
-    # 根据yaml配置文件使用instantiate函数初始化类对象
     chiplet = init_chiplet(cfg)
     # cluster = init_cluster(cfg)  # Cluster is a collection of Servers and interconnected Links.
     # Router routes Requests to Application Schedulers.
@@ -52,9 +50,7 @@ def run_simulation(cfg):
     sim.run()
 
 
-# config_path: 指定 Hydra 在哪个目录中查找配置文件
-# config_name: 指定要使用的配置文件的基本名称
-# version_base: 指定 Hydra 的版本基础
+
 @hydra.main(config_path="configs", config_name="config", version_base=None)
 def run(cfg: DictConfig) -> None:
     # print config
@@ -63,8 +59,7 @@ def run(cfg: DictConfig) -> None:
     # print(OmegaConf.to_yaml(hydra_cfg, resolve=False))
 
     # initialize random number generator
-    random.seed()
-    #random.seed(cfg.seed)
+    random.seed(cfg.seed)
 
     # delete existing oom.csv if any
     if os.path.exists("oom.csv"):

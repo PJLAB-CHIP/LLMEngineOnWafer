@@ -1,5 +1,5 @@
 defaults:
-  - chiplet: chiplet  #在chiplet目录寻找chiplet.yaml
+  - chiplet: chiplet  
   - cluster: dgx-a100
   - router: noop
   - arbiter: noop

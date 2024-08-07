@@ -152,7 +152,7 @@ class PromptTask(Task):
         assert self.generated_tokens == 1
 
         # manage memory
-        if self.cleanup_memory:  # Prompt Task 不清理 memory，由flow清理
+        if self.cleanup_memory: 
             self.instance.free_memory(self.request, self.request.memory)
             self.request.memory = 0
 
@@ -218,14 +218,13 @@ class TokenTask(Task):
                                                 self.request.token_size - 1
 
         # manage memory
-        if self.cleanup_memory:  # Token Task 要清理内存
+        if self.cleanup_memory: 
             prompt_task = self.request.root_node
             flow_size = self.request.estimate_kv_cache_size(
                                         num_tokens=prompt_task.prompt_size,
                                         model=self.instance.model)
             self.store_instance.free_memory(self.request, prompt_task.memory)
             self.instance.free_memory(self.request, self.memory)
-            #self.instance.free_memory(self.request, self.request.memory)
             self.request.memory = 0
 
 
