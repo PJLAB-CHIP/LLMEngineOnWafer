@@ -1,24 +1,24 @@
 
 __target__: chiplet.Chiplet
-num_x: 6
-num_y: 6
-die_num: 36
+num_x: 5
+num_y: 4
+die_num: 20
 dies:
   - __target__: die.Die
-    num_x: 6
-    num_y: 6
-    tile_num: 144
+    num_x: 5
+    num_y: 4
+    tile_num: 256
     d2d_bw: 4500
     dram:
       __target__: dram.Dram
       bandwidth: 900  # GB
       latency: 0.1  # us
-      memory_size: 900  # GB
+      memory_size: 1600  # GB
       memory_used: 0
     tiles:
       - __target__: components.tile.Tile
-        num_x: 12
-        num_y: 12
+        num_x: 16
+        num_y: 16
         sram: 1.25  # MB
         bandwidth: 9000  # GB
         tflops: 1.02  # TFLOPS

@@ -76,7 +76,7 @@ class Chiplet:
         #interconnects_cfg = chiplet_cfg.interconnects
         num_x = chiplet_cfg.num_x
         num_y = chiplet_cfg.num_y
-        tile_num = 144#dies_cfg.tile_num
+        tile_num = 256#dies_cfg.tile_num
         # instantiate dies
         die_id = count()
         dies = []

@@ -1,5 +1,5 @@
 import logging
-
+import ipdb
 from dataclasses import dataclass, field
 from enum import IntEnum
 
@@ -100,6 +100,7 @@ class PromptTask(Task):
     def __hash__(self):
         return hash(self.node_id)
 
+    
     @property
     def memory(self):
         num_tokens = self.prompt_size + 1
@@ -117,6 +118,8 @@ class PromptTask(Task):
         # manage memory
         self.instance.alloc_memory(self.request, self.memory)
         self.request.memory += self.memory
+        
+        
 
     def complete_iteration(self):
         # tokens processing
@@ -127,7 +130,8 @@ class PromptTask(Task):
         self.request.generated_tokens += self.generating_tokens
         self.processing_tokens = 0
         self.generating_tokens = 0
-
+        
+        
     def is_complete(self):
         return self.generated_tokens == 1
 
@@ -148,7 +152,7 @@ class PromptTask(Task):
         assert self.generated_tokens == 1
 
         # manage memory
-        if self.cleanup_memory:
+        if self.cleanup_memory:  # Prompt Task 不清理 memory，由flow清理
             self.instance.free_memory(self.request, self.request.memory)
             self.request.memory = 0
 
@@ -165,7 +169,8 @@ class TokenTask(Task):
     generating_tokens: int = 0
     generated_tokens: int = 0
     task_type: TaskType = TaskType.TOKEN
-
+    store_instance = None
+    
     def __hash__(self):
         return hash(self.node_id)
 
@@ -213,8 +218,14 @@ class TokenTask(Task):
                                                 self.request.token_size - 1
 
         # manage memory
-        if self.cleanup_memory:
-            self.instance.free_memory(self.request, self.request.memory)
+        if self.cleanup_memory:  # Token Task 要清理内存
+            prompt_task = self.request.root_node
+            flow_size = self.request.estimate_kv_cache_size(
+                                        num_tokens=prompt_task.prompt_size,
+                                        model=self.instance.model)
+            self.store_instance.free_memory(self.request, prompt_task.memory)
+            self.instance.free_memory(self.request, self.memory)
+            #self.instance.free_memory(self.request, self.request.memory)
             self.request.memory = 0
 
 

@@ -12,7 +12,7 @@ class Dram():
     """
     Dram is the unit to store the weight & kv cache
 
-    Each Processor can belong to only one Die
+    Each DRAM can belong to only one Die
 
     Attributes:
         memory_size (float): The memory size of the Processor.

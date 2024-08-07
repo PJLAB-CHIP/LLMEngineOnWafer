@@ -63,7 +63,8 @@ def run(cfg: DictConfig) -> None:
     # print(OmegaConf.to_yaml(hydra_cfg, resolve=False))
 
     # initialize random number generator
-    random.seed(cfg.seed)
+    random.seed()
+    #random.seed(cfg.seed)
 
     # delete existing oom.csv if any
     if os.path.exists("oom.csv"):

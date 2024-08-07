@@ -100,6 +100,11 @@ class Allocator(ABC):
 
         instance_names = []
         utilizations = []
+        tot_energy = []
+        noc_energy = []
+        dram_energy = []
+        comp_energy = []
+        memory_peak = []
         for instance in self.application.instances:
             #assert len(instance.pending_requests) == 0, instance.instance_id
             #assert len(instance.pending_queue) == 0, instance.instance_id
@@ -109,11 +114,20 @@ class Allocator(ABC):
             utilization = instance.metrics.busy_time / instance.metrics.interval_time
             instance_names.append(instance.processors[0].name)
             utilizations.append(utilization)
+            tot_energy.append(instance.tot_energy / 10**12) 
+            noc_energy.append(instance.noc_energy / 10**12)
+            dram_energy.append(instance.dram_energy / 10**12)
+            comp_energy.append(instance.comp_energy / 10**12)
+            memory_peak.append(instance.memory_peak / 2**30)
 
         results['instance_names'] = instance_names
         results['utilizations'] = utilizations
+        results['tot_energy'] = tot_energy 
+        results['noc_energy'] = noc_energy 
+        results['dram_energy'] = dram_energy 
+        results['comp_energy'] = comp_energy 
+        results['memory_peak'] = memory_peak
         return results
-
 
 class NoOpAllocator(Allocator):
     """

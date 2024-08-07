@@ -57,7 +57,7 @@ class Simulator:
         # 计算总秒数
         total_seconds = minutes * 60 + seconds_with_ms
         
-        return total_seconds
+        return total_seconds / 8
     
     def schedule(self, delay, action):
         """
@@ -166,7 +166,6 @@ class TraceSimulator(Simulator):
 
         # save summary results
         utils.save_dict_as_csv(summary_results, "summary.csv")
-
         if detailed:
             # create a dataframe of all requests, save as csv
             for application_id, result in sched_results.items():

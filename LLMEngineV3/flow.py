@@ -1,5 +1,5 @@
 import logging
-
+import ipdb
 from dataclasses import dataclass, field
 from enum import IntEnum
 
@@ -69,9 +69,10 @@ class Flow(Node):
 
     def complete(self):
         super().complete()
-
         # manage memory
+        #ipdb.set_trace()
         self.src.free_memory(self.request, self.request.memory)
+        
 
     @classmethod
     def from_type(cls, flow_type, **kwargs):

@@ -19,7 +19,7 @@ debug: True
 seed: 0
 
 choices: ${hydra:runtime.choices}
-output_dir: results/${seed}/${start_state.state_type}/${trace.filename}/${cluster.servers.0.count}_${cluster.servers.1.count}/${applications.0.model_architecture}/${applications.0.scheduler}
+output_dir: no_memory_results/${seed}/${start_state.state_type}/${trace.filename}/${cluster.servers.0.count}_${cluster.servers.1.count}/${applications.0.model_architecture}/${applications.0.scheduler}
 
 hydra:
   # changes the cwd to the output directory

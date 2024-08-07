@@ -1,0 +1,110 @@
+{
+    "RMSNorm": {
+        "latency": 0.00136951545,
+        "utilization": 0.3445446343814522,
+        "cp_latency": 0.0001179648,
+        "total_energy": 151903567.87199998,
+        "NoC_energy": 0.0,
+        "DRAM_energy": 151900913.66399997,
+        "Compute_energy": 2654.2079999999996
+    },
+    "QKV_fusion": {
+        "latency": 0.9996631058845069,
+        "utilization": 0.9995679956345879,
+        "cp_latency": 0.9992312470588234,
+        "total_energy": 1958587165814.2925,
+        "NoC_energy": 27128645529.10848,
+        "DRAM_energy": 1931421828513.792,
+        "Compute_energy": 36691771.392
+    },
+    "Flashatten": {
+        "latency": 0.0010125039767746745,
+        "utilization": 0.043036291854563834,
+        "cp_latency": 0.0005782588235294118,
+        "total_energy": 22673838719.48083,
+        "NoC_energy": 118794366.22233601,
+        "DRAM_energy": 22555020754.944,
+        "Compute_energy": 23598.314495999995
+    },
+    "Linear": {
+        "latency": 0.33346503401309746,
+        "utilization": 0.998836604679395,
+        "cp_latency": 0.3330770823529412,
+        "total_energy": 657334179704.3403,
+        "NoC_energy": 10081920331.28448,
+        "DRAM_energy": 647240028782.5919,
+        "Compute_energy": 12230590.464
+    },
+    "RMSNorm2": {
+        "latency": 0.00136951545,
+        "utilization": 0.3445446343814522,
+        "cp_latency": 0.0001179648,
+        "total_energy": 151903567.87199998,
+        "NoC_energy": 0.0,
+        "DRAM_energy": 151900913.66399997,
+        "Compute_energy": 2654.2079999999996
+    },
+    "ResAdd": {
+        "latency": 0.0085966986625,
+        "utilization": 0.0034305262005570503,
+        "cp_latency": 2.9491199999999996e-05,
+        "total_energy": 2266586919806.9756,
+        "NoC_energy": 0.0,
+        "DRAM_energy": 2266586916323.3276,
+        "Compute_energy": 3483.647999999999
+    },
+    "FFNup&SiLU": {
+        "latency": 1.3332208250558564,
+        "utilization": 0.9996694947785012,
+        "cp_latency": 1.3327801886117645,
+        "total_energy": 2483483864258.839,
+        "NoC_energy": 55718438932.31616,
+        "DRAM_energy": 2427728720560.1284,
+        "Compute_energy": 36704766.39436799
+    },
+    "FFNgate": {
+        "latency": 1.3327489658558564,
+        "utilization": 0.9996693777632693,
+        "cp_latency": 1.3323083294117646,
+        "total_energy": 2483511030353.7563,
+        "NoC_energy": 55718438932.31616,
+        "DRAM_energy": 2427755899650.048,
+        "Compute_energy": 36691771.392
+    },
+    "Hadamard": {
+        "latency": 0.0011774288,
+        "utilization": 0.13358463798405476,
+        "cp_latency": 0.00011796479999999999,
+        "total_energy": 1198300299.2640002,
+        "NoC_energy": 0.0,
+        "DRAM_energy": 1198295875.584,
+        "Compute_energy": 4423.679999999999
+    },
+    "FFNdown": {
+        "latency": 1.3326962810719212,
+        "utilization": 0.9997088971690952,
+        "cp_latency": 1.3323083294117648,
+        "total_energy": 660475844933.714,
+        "NoC_energy": 40327681325.13792,
+        "DRAM_energy": 620111471837.1841,
+        "Compute_energy": 36691771.392
+    },
+    "ResAdd2": {
+        "latency": 0.0085966986625,
+        "utilization": 0.0034305262005570503,
+        "cp_latency": 2.9491199999999996e-05,
+        "total_energy": 2266586919806.9756,
+        "NoC_energy": 0.0,
+        "DRAM_energy": 2266586916323.3276,
+        "Compute_energy": 3483.647999999999
+    },
+    "TotalLayer": {
+        "latency": 0.34265066066451283,
+        "total_energy": 12800741870833.383,
+        "NoC_energy": 189093919416.38553,
+        "DRAM_energy": 12611488900448.256,
+        "Compute_energy": 159050968.74086398,
+        "utilization": 99.56629394395064,
+        "cp_latency": 0.3411645639981177
+    }
+}

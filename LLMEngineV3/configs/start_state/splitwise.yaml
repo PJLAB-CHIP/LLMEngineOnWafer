@@ -7,17 +7,17 @@ prompt:
   instance_type: Splitwise
   max_batch_size: 512
   max_batch_tokens: 2048
-  max_preemptions: 0
-  pipeline_parallelism: 1
-  tensor_parallelism: 144
-  num_instances: 31
+  max_preemptions: 4
+  pipeline_parallelism: 2
+  tensor_parallelism: 256
+  num_instances: 10
   instance_names: ["dgx-a100"]
 token:
   instance_type: Splitwise
   max_batch_size: 512
   max_batch_tokens: 2048
-  max_preemptions: 0
+  max_preemptions: 4
   pipeline_parallelism: 1
-  tensor_parallelism: 144
-  num_instances: 5
+  tensor_parallelism: 16
+  num_instances: 160
   instance_names: ["dgx-a100"]
